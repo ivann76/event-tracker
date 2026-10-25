@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event Pay Tracker</title>
+<style>
+:root{--bg:#eef1f5;--card:#fff;--ink:#17202e;--mute:#667085;--line:#d9dfe8;--blue:#1f4fd8;--green:#157a4a;--greenbg:#e2f4EA;--amber:#a15c00;--amberbg:#fdf0d5;--red:#b42318;--redbg:#fde8e6;--grey:#e8ecf2}
+@media(prefers-color-scheme:dark){:root{--bg:#10151d;--card:#192130;--ink:#e8edf5;--mute:#95a0b3;--line:#2b3547;--blue:#7ea0ff;--green:#5fd39a;--greenbg:#16342a;--amber:#f2b84b;--amberbg:#3a2d12;--red:#ff8a80;--redbg:#3d1c19;--grey:#232d3f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:920px;margin:0 auto;padding:20px 16px 60px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-size:1.5rem;margin:0}
+button,input{font:inherit}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:8px;cursor:pointer}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+[data-theme] .btn.primary{color:#fff}
+@media(prefers-color-scheme:dark){.btn.primary{color:#0b1220}}
+.btn.good{background:var(--green);border-color:var(--green);color:#fff}
+@media(prefers-color-scheme:dark){.btn.good{color:#0b1220}}
+.btn.small{padding:5px 10px;font-size:.88rem}
+.btn:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.stat b{display:block;font-size:1.55rem;line-height:1.2}
+.stat span{color:var(--mute);font-size:.9rem}
+.stat.owed{border-left:6px solid var(--amber)}
+.stat.paid{border-left:6px solid var(--green)}
+.stat.short{border-left:6px solid var(--red)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.tabs button{border:1px solid var(--line);background:transparent;color:var(--ink);padding:6px 14px;border-radius:999px;cursor:pointer}
+.tabs button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.ev{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:grid;grid-template-columns:1fr auto;gap:8px 16px}
+.ev h3{margin:0;font-size:1.05rem}
+.when{font-weight:600}
+.meta{color:var(--mute);font-size:.93rem}
+.pay{text-align:right}
+.pay b{font-size:1.25rem}
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.82rem;font-weight:600;margin-top:4px}
+.b-up{background:var(--grey);color:var(--mute)}
+.b-wait{background:var(--amberbg);color:var(--amber)}
+.b-paid{background:var(--greenbg);color:var(--green)}
+.b-short{background:var(--redbg);color:var(--red)}
+.acts{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px}
+.empty{background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:28px;text-align:center;color:var(--mute)}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(480px,94vw);padding:20px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h2{margin:0 0 12px;font-size:1.2rem}
+label{display:block;font-size:.9rem;font-weight:600;margin:10px 0 4px}
+input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.note{font-size:.9rem;margin-top:8px}
+.warn{color:var(--red)}
+.dayhint{color:var(--mute);font-size:.88rem;margin-top:4px}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Event Pay Tracker</h1>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn" id="exp">Export backup</button>
+    <button class="btn" id="imp">Import</button>
+    <input type="file" id="file" accept=".json" hidden>
+    <button class="btn primary" id="add">Add event</button>
+  </div>
+</header>
+
+<section class="stats" id="stats"></section>
+<div class="tabs" id="tabs"></div>
+<section id="list"></section>
+</main>
+
+<dialog id="form">
+  <form method="dialog" id="f">
+    <h2 id="ftitle">Add event</h2>
+    <label for="date">Date</label>
+    <input type="date" id="date" required>
+    <div class="dayhint" id="day"></div>
+    <div class="row">
+      <div><label for="start">Start time</label><input type="time" id="start" required></div>
+      <div><label for="end">End time</label><input type="time" id="end" required></div>
+    </div>
+    <label for="salary">Salary for this event (RM)</label>
+    <input type="number" id="salary" min="0" step="0.01" required>
+    <label for="loc">Location name</label>
+    <input id="loc" required placeholder="e.g. Pavilion Hall">
+    <label for="addr">Address</label>
+    <input id="addr" placeholder="Street, city">
+    <div class="foot">
+      <button type="button" class="btn" id="cancel">Cancel</button>
+      <button class="btn primary" type="submit">Save event</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="payd">
+  <form method="dialog" id="pf">
+    <h2>Mark as paid</h2>
+    <div class="meta" id="pinfo"></div>
+    <label for="pdate">Date received</label>
+    <input type="date" id="pdate" required>
+    <label for="pamt">Amount you received (RM)</label>
+    <input type="number" id="pamt" min="0" step="0.01" required>
+    <div class="note" id="pcheck"></div>
+    <div class="foot">
+      <button type="button" class="btn" id="pcancel">Cancel</button>
+      <button class="btn good" type="submit">Confirm paid</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const KEY = 'eventPayTracker.v1';
+const $ = id => document.getElementById(id);
+const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+let events = [], filter = 'all', editId = null, payId = null;
+
+try { events = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { events = []; }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(events)); } catch (e) { alert('Could not save in this browser. Use Export backup.'); } }
+
+const rm = n => 'RM ' + Number(n).toLocaleString('en-MY', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+const dayName = ds => ds ? DAYS[new Date(ds + 'T00:00').getDay()] : '';
+const fmtDate = ds => new Date(ds + 'T00:00').toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'});
+const fmtTime = t => { const [h,m] = t.split(':').map(Number); return ((h % 12) || 12) + ':' + String(m).padStart(2,'0') + ' ' + (h < 12 ? 'AM' : 'PM'); };
+const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function status(e) {
+  if (e.paid) return Math.abs(e.paid.amount - e.salary) > 0.004 ? 'short' : 'paid';
+  const end = new Date(e.date + 'T' + e.end);
+  return end < new Date() ? 'wait' : 'up';
+}
+
+function render() {
+  const s = events.map(e => ({...e, st: status(e)}));
+  const owed = s.filter(e => e.st === 'wait');
+  const upc = s.filter(e => e.st === 'up');
+  const month = today().slice(0,7);
+  const paidM = s.filter(e => e.paid && e.paid.date.slice(0,7) === month).reduce((a,e) => a + e.paid.amount, 0);
+  const shorts = s.filter(e => e.st === 'short');
+  const diff = shorts.reduce((a,e) => a + (e.salary - e.paid.amount), 0);
+
+  $('stats').innerHTML =
+    `<div class="stat owed"><b>${rm(owed.reduce((a,e)=>a+e.salary,0))}</b><span>Waiting to be paid (${owed.length} done events)</span></div>
+     <div class="stat"><b>${rm(upc.reduce((a,e)=>a+e.salary,0))}</b><span>Upcoming (${upc.length} events)</span></div>
+     <div class="stat paid"><b>${rm(paidM)}</b><span>Received this month</span></div>` +
+    (shorts.length ? `<div class="stat short"><b>${rm(Math.abs(diff))}</b><span>${diff>0?'Underpaid':'Overpaid'} across ${shorts.length} event(s)</span></div>` : '');
+
+  const tabs = [['all','All',s.length],['up','Upcoming',upc.length],['wait','Waiting for pay',owed.length],['paid','Paid',s.filter(e=>e.paid).length]];
+  $('tabs').innerHTML = tabs.map(t => `<button aria-pressed="${filter===t[0]}" data-f="${t[0]}">${t[1]} (${t[2]})</button>`).join('');
+
+  let list = s.filter(e => filter==='all' || (filter==='paid' ? !!e.paid : e.st===filter));
+  list.sort((a,b) => filter==='paid' || filter==='all' && false ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+
+  if (!list.length) {
+    $('list').innerHTML = `<div class="empty">${s.length ? 'No events in this view.' : 'No events yet. Press “Add event” to record your first one.'}</div>`;
+    return;
+  }
+  const badge = {up:['b-up','Upcoming'], wait:['b-wait','Event done · waiting for pay'], paid:['b-paid','Paid'], short:['b-short','Paid · amount differs']};
+  $('list').innerHTML = list.map(e => {
+    const b = badge[e.st];
+    const paidLine = e.paid ? `<div class="meta">Received ${rm(e.paid.amount)} on ${fmtDate(e.paid.date)}${e.st==='short' ? ` <span class="warn">(${e.paid.amount < e.salary ? 'short by ' : 'extra '}${rm(Math.abs(e.salary - e.paid.amount))})</span>` : ''}</div>` : '';
+    return `<article class="ev">
+      <div>
+        <h3>${esc(e.loc)}</h3>
+        <div class="when">${dayName(e.date)}, ${fmtDate(e.date)} · ${fmtTime(e.start)} – ${fmtTime(e.end)}</div>
+        <div class="meta">${esc(e.addr) || 'No address'}</div>
+        ${paidLine}
+      </div>
+      <div class="pay"><b>${rm(e.salary)}</b><br><span class="badge ${b[0]}">${b[1]}</span></div>
+      <div class="acts">
+        ${e.paid ? `<button class="btn small" data-a="unpay" data-id="${e.id}">Undo paid</button>` : `<button class="btn small good" data-a="pay" data-id="${e.id}">Mark as paid</button>`}
+        <button class="btn small" data-a="edit" data-id="${e.id}">Edit</button>
+        <button class="btn small" data-a="del" data-id="${e.id}">Delete</button>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+/* add / edit */
+function openForm(e) {
+  editId = e ? e.id : null;
+  $('ftitle').textContent = e ? 'Edit event' : 'Add event';
+  $('date').value = e ? e.date : today();
+  $('start').value = e ? e.start : '';
+  $('end').value = e ? e.end : '';
+  $('salary').value = e ? e.salary : '';
+  $('loc').value = e ? e.loc : '';
+  $('addr').value = e ? e.addr : '';
+  $('day').textContent = dayName($('date').value);
+  $('form').showModal();
+}
+$('date').addEventListener('input', () => $('day').textContent = dayName($('date').value));
+$('f').addEventListener('submit', ev => {
+  const data = {date:$('date').value, start:$('start').value, end:$('end').value, salary:parseFloat($('salary').value), loc:$('loc').value.trim(), addr:$('addr').value.trim()};
+  if (editId) { const i = events.findIndex(x => x.id === editId); events[i] = {...events[i], ...data}; }
+  else events.push({id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), paid: null, ...data});
+  save(); render();
+});
+$('cancel').onclick = () => $('form').close();
+$('add').onclick = () => openForm();
+
+/* mark paid */
+function checkAmt() {
+  const e = events.find(x => x.id === payId); if (!e) return;
+  const v = parseFloat($('pamt').value), d = e.salary - v;
+  $('pcheck').innerHTML = isNaN(v) ? '' : Math.abs(d) < 0.005 ? 'Matches the agreed salary.' : `<span class="warn">Differs from agreed ${rm(e.salary)}: ${d>0?'short by ':'extra '}${rm(Math.abs(d))}. It will be flagged on the dashboard.</span>`;
+}
+$('pamt').addEventListener('input', checkAmt);
+$('pf').addEventListener('submit', () => {
+  const e = events.find(x => x.id === payId);
+  e.paid = {amount: parseFloat($('pamt').value), date: $('pdate').value};
+  save(); render();
+});
+$('pcancel').onclick = () => $('payd').close();
+
+/* list actions */
+$('list').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-a]'); if (!b) return;
+  const e = events.find(x => x.id === b.dataset.id), a = b.dataset.a;
+  if (a === 'edit') openForm(e);
+  if (a === 'del' && confirm('Delete this event?')) { events = events.filter(x => x.id !== e.id); save(); render(); }
+  if (a === 'unpay') { e.paid = null; save(); render(); }
+  if (a === 'pay') {
+    payId = e.id;
+    $('pinfo').textContent = e.loc + ' · ' + fmtDate(e.date) + ' · agreed ' + rm(e.salary);
+    $('pdate').value = today(); $('pamt').value = e.salary; checkAmt();
+    $('payd').showModal();
+  }
+});
+$('tabs').addEventListener('click', ev => { const b = ev.target.closest('button[data-f]'); if (b) { filter = b.dataset.f; render(); } });
+
+/* backup */
+$('exp').onclick = () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(events, null, 2)], {type:'application/json'}));
+  a.download = 'event-pay-backup-' + today() + '.json'; a.click();
+};
+$('imp').onclick = () => $('file').click();
+$('file').onchange = async () => {
+  try {
+    const d = JSON.parse(await $('file').files[0].text());
+    if (!Array.isArray(d)) throw 0;
+    if (confirm('Replace current data with ' + d.length + ' events from this backup?')) { events = d; save(); render(); }
+  } catch (e) { alert('That file is not a valid backup.'); }
+  $('file').value = '';
+};
+
+render();
+setInterval(render, 60000);
+</script>
+</body>
+</html>
