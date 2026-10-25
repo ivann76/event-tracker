@@ -54,6 +54,8 @@ input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px
 .note{font-size:.9rem;margin-top:8px}
 .warn{color:var(--red)}
 .dayhint{color:var(--mute);font-size:.88rem;margin-top:4px}
+
+.calendar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:16px 0;flex-wrap:wrap}.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.weekday{text-align:center;color:var(--mute);font-size:.8rem;padding:6px}.cal-day{min-height:90px;padding:7px 4px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);cursor:pointer;text-align:left;overflow:hidden}.cal-day.has-events{border-color:var(--blue);background:var(--grey)}.cal-day.selected{outline:2px solid var(--blue)}.cal-day.today strong{background:var(--blue);color:var(--card);border-radius:50%;padding:2px 5px}.cal-day small{display:block;font-size:.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.calendar-summary{margin:12px 0;color:var(--mute)}.cal-blank{min-height:90px}.calendar-details{margin-top:18px}@media(max-width:540px){.cal-day,.cal-blank{min-height:74px}.cal-day small{font-size:.63rem}.ev{grid-template-columns:1fr}.pay{text-align:left}}
 </style>
 </head>
 <body>
@@ -70,6 +72,7 @@ input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px
 
 <section class="stats" id="stats"></section>
 <div class="tabs" id="tabs"></div>
+<section id="calendar" hidden></section>
 <section id="list"></section>
 </main>
 
@@ -85,6 +88,9 @@ input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px
     </div>
     <label for="salary">Salary for this event (RM)</label>
     <input type="number" id="salary" min="0" step="0.01" required>
+    <label for="allowance">Allowance for this event (RM)</label>
+    <input type="number" id="allowance" min="0" step="0.01" value="0">
+    <div class="dayhint" id="eventTotal"></div>
     <label for="loc">Location name</label>
     <input id="loc" required placeholder="e.g. Pavilion Hall">
     <label for="addr">Address</label>
@@ -117,6 +123,8 @@ const KEY = 'eventPayTracker.v1';
 const $ = id => document.getElementById(id);
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 let events = [], filter = 'all', editId = null, payId = null;
+let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1), selectedDate = null;
+const totalPay = e => Math.round((Number(e.salary || 0) + Number(e.allowance || 0)) * 100) / 100;
 
 try { events = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { events = []; }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(events)); } catch (e) { alert('Could not save in this browser. Use Export backup.'); } }
@@ -129,7 +137,7 @@ const fmtTime = t => { const [h,m] = t.split(':').map(Number); return ((h % 12) 
 const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function status(e) {
-  if (e.paid) return Math.abs(e.paid.amount - e.salary) > 0.004 ? 'short' : 'paid';
+  if (e.paid) return Math.abs(e.paid.amount - totalPay(e)) > 0.004 ? 'short' : 'paid';
   const end = new Date(e.date + 'T' + e.end);
   return end < new Date() ? 'wait' : 'up';
 }
@@ -141,28 +149,32 @@ function render() {
   const month = today().slice(0,7);
   const paidM = s.filter(e => e.paid && e.paid.date.slice(0,7) === month).reduce((a,e) => a + e.paid.amount, 0);
   const shorts = s.filter(e => e.st === 'short');
-  const diff = shorts.reduce((a,e) => a + (e.salary - e.paid.amount), 0);
+  const diff = shorts.reduce((a,e) => a + (totalPay(e) - e.paid.amount), 0);
 
   $('stats').innerHTML =
-    `<div class="stat owed"><b>${rm(owed.reduce((a,e)=>a+e.salary,0))}</b><span>Waiting to be paid (${owed.length} done events)</span></div>
-     <div class="stat"><b>${rm(upc.reduce((a,e)=>a+e.salary,0))}</b><span>Upcoming (${upc.length} events)</span></div>
+    `<div class="stat owed"><b>${rm(owed.reduce((a,e)=>a+totalPay(e),0))}</b><span>Waiting to be paid (${owed.length} done events)</span></div>
+     <div class="stat"><b>${rm(upc.reduce((a,e)=>a+totalPay(e),0))}</b><span>Upcoming (${upc.length} events)</span></div>
      <div class="stat paid"><b>${rm(paidM)}</b><span>Received this month</span></div>` +
     (shorts.length ? `<div class="stat short"><b>${rm(Math.abs(diff))}</b><span>${diff>0?'Underpaid':'Overpaid'} across ${shorts.length} event(s)</span></div>` : '');
 
-  const tabs = [['all','All',s.length],['up','Upcoming',upc.length],['wait','Waiting for pay',owed.length],['paid','Paid',s.filter(e=>e.paid).length]];
+  const salaryTotal = s.reduce((a,e)=>a+Number(e.salary || 0),0), allowanceTotal = s.reduce((a,e)=>a+Number(e.allowance || 0),0);
+  $('stats').innerHTML += `<div class="stat"><b>${rm(salaryTotal)}</b><span>Total salary · all events</span></div><div class="stat"><b>${rm(allowanceTotal)}</b><span>Total allowance · all events</span></div><div class="stat"><b>${rm(salaryTotal+allowanceTotal)}</b><span>Total expected pay · salary + allowance</span></div>`;
+  const tabs = [['calendar','Calendar',s.length],['all','All',s.length],['up','Upcoming',upc.length],['wait','Waiting for pay',owed.length],['paid','Paid',s.filter(e=>e.paid).length]];
   $('tabs').innerHTML = tabs.map(t => `<button aria-pressed="${filter===t[0]}" data-f="${t[0]}">${t[1]} (${t[2]})</button>`).join('');
 
-  let list = s.filter(e => filter==='all' || (filter==='paid' ? !!e.paid : e.st===filter));
+  $('calendar').hidden = filter !== 'calendar';
+  if (filter === 'calendar') renderCalendar();
+  let list = s.filter(e => (filter==='calendar' ? e.date === selectedDate : filter==='all') || (filter==='paid' ? !!e.paid : e.st===filter));
   list.sort((a,b) => filter==='paid' || filter==='all' && false ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
 
   if (!list.length) {
-    $('list').innerHTML = `<div class="empty">${s.length ? 'No events in this view.' : 'No events yet. Press “Add event” to record your first one.'}</div>`;
+    $('list').innerHTML = `<div class="empty">${s.length ? (filter==='calendar' ? 'Select an event date above to see its details.' : 'No events in this view.') : 'No events yet. Press “Add event” to record your first one.'}</div>`;
     return;
   }
   const badge = {up:['b-up','Upcoming'], wait:['b-wait','Event done · waiting for pay'], paid:['b-paid','Paid'], short:['b-short','Paid · amount differs']};
   $('list').innerHTML = list.map(e => {
     const b = badge[e.st];
-    const paidLine = e.paid ? `<div class="meta">Received ${rm(e.paid.amount)} on ${fmtDate(e.paid.date)}${e.st==='short' ? ` <span class="warn">(${e.paid.amount < e.salary ? 'short by ' : 'extra '}${rm(Math.abs(e.salary - e.paid.amount))})</span>` : ''}</div>` : '';
+    const paidLine = e.paid ? `<div class="meta">Received ${rm(e.paid.amount)} on ${fmtDate(e.paid.date)}${e.st==='short' ? ` <span class="warn">(${e.paid.amount < totalPay(e) ? 'short by ' : 'extra '}${rm(Math.abs(totalPay(e) - e.paid.amount))})</span>` : ''}</div>` : '';
     return `<article class="ev">
       <div>
         <h3>${esc(e.loc)}</h3>
@@ -170,7 +182,7 @@ function render() {
         <div class="meta">${esc(e.addr) || 'No address'}</div>
         ${paidLine}
       </div>
-      <div class="pay"><b>${rm(e.salary)}</b><br><span class="badge ${b[0]}">${b[1]}</span></div>
+      <div class="pay"><b>${rm(totalPay(e))}</b><div class="meta">Salary ${rm(e.salary)}<br>Allowance ${rm(e.allowance || 0)}</div><span class="badge ${b[0]}">${b[1]}</span></div>
       <div class="acts">
         ${e.paid ? `<button class="btn small" data-a="unpay" data-id="${e.id}">Undo paid</button>` : `<button class="btn small good" data-a="pay" data-id="${e.id}">Mark as paid</button>`}
         <button class="btn small" data-a="edit" data-id="${e.id}">Edit</button>
@@ -180,6 +192,32 @@ function render() {
   }).join('');
 }
 
+
+function updateEventTotal() {
+  $('eventTotal').textContent = 'Total expected pay: ' + rm(Number($('salary').value || 0) + Number($('allowance').value || 0));
+}
+$('salary').addEventListener('input', updateEventTotal);
+$('allowance').addEventListener('input', updateEventTotal);
+function renderCalendar() {
+  const y = calendarMonth.getFullYear(), m = calendarMonth.getMonth();
+  const monthKey = y + '-' + String(m+1).padStart(2,'0');
+  const monthly = events.filter(e=>e.date.slice(0,7)===monthKey);
+  const cells = [];
+  for(let i=0;i<new Date(y,m,1).getDay();i++) cells.push('<div class="cal-blank"></div>');
+  for(let d=1;d<=new Date(y,m+1,0).getDate();d++) {
+    const ds = monthKey + '-' + String(d).padStart(2,'0'), entries = monthly.filter(e=>e.date===ds).sort((a,b)=>a.start.localeCompare(b.start));
+    cells.push(`<button class="cal-day ${entries.length?'has-events':''} ${ds===today()?'today':''} ${ds===selectedDate?'selected':''}" data-date="${ds}" aria-label="${ds}: ${entries.length} events" aria-pressed="${ds===selectedDate}"><strong>${d}</strong>${entries.length?`<small>${entries.length} event${entries.length===1?'':'s'}</small>`:''}${entries.slice(0,2).map(e=>`<small>${esc(e.start)} ${esc(e.loc)}</small>`).join('')}${entries.length>2?'<small>+ more</small>':''}</button>`);
+  }
+  $('calendar').innerHTML = `<div class="calendar-head"><button class="btn" data-month="-1" aria-label="Previous month">← Previous</button><h2>${calendarMonth.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</h2><button class="btn" data-month="1" aria-label="Next month">Next →</button><button class="btn" data-today>Today</button></div><div class="calendar-summary">${monthly.length} events · Salary ${rm(monthly.reduce((a,e)=>a+Number(e.salary),0))} · Allowance ${rm(monthly.reduce((a,e)=>a+Number(e.allowance || 0),0))} · Total ${rm(monthly.reduce((a,e)=>a+totalPay(e),0))}</div><div class="calendar-grid">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="weekday">${d}</div>`).join('')}${cells.join('')}</div><h3>${selectedDate?dayName(selectedDate)+', '+fmtDate(selectedDate):'Event details'}</h3>`;
+}
+$('calendar').addEventListener('click', ev=>{
+  const b=ev.target.closest('button'); if(!b)return;
+  if(b.dataset.month) { calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+Number(b.dataset.month),1); selectedDate=null; }
+  if(b.hasAttribute('data-today')) { const d=new Date();calendarMonth=new Date(d.getFullYear(),d.getMonth(),1);selectedDate=today(); }
+  if(b.dataset.date) selectedDate=b.dataset.date;
+  render();
+});
+
 /* add / edit */
 function openForm(e) {
   editId = e ? e.id : null;
@@ -188,6 +226,8 @@ function openForm(e) {
   $('start').value = e ? e.start : '';
   $('end').value = e ? e.end : '';
   $('salary').value = e ? e.salary : '';
+  $('allowance').value = e ? (e.allowance || 0) : 0;
+  updateEventTotal();
   $('loc').value = e ? e.loc : '';
   $('addr').value = e ? e.addr : '';
   $('day').textContent = dayName($('date').value);
@@ -195,7 +235,7 @@ function openForm(e) {
 }
 $('date').addEventListener('input', () => $('day').textContent = dayName($('date').value));
 $('f').addEventListener('submit', ev => {
-  const data = {date:$('date').value, start:$('start').value, end:$('end').value, salary:parseFloat($('salary').value), loc:$('loc').value.trim(), addr:$('addr').value.trim()};
+  const data = {date:$('date').value, start:$('start').value, end:$('end').value, salary:parseFloat($('salary').value), allowance:parseFloat($('allowance').value || '0'), loc:$('loc').value.trim(), addr:$('addr').value.trim()};
   if (editId) { const i = events.findIndex(x => x.id === editId); events[i] = {...events[i], ...data}; }
   else events.push({id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), paid: null, ...data});
   save(); render();
@@ -206,8 +246,8 @@ $('add').onclick = () => openForm();
 /* mark paid */
 function checkAmt() {
   const e = events.find(x => x.id === payId); if (!e) return;
-  const v = parseFloat($('pamt').value), d = e.salary - v;
-  $('pcheck').innerHTML = isNaN(v) ? '' : Math.abs(d) < 0.005 ? 'Matches the agreed salary.' : `<span class="warn">Differs from agreed ${rm(e.salary)}: ${d>0?'short by ':'extra '}${rm(Math.abs(d))}. It will be flagged on the dashboard.</span>`;
+  const v = parseFloat($('pamt').value), d = totalPay(e) - v;
+  $('pcheck').innerHTML = isNaN(v) ? '' : Math.abs(d) < 0.005 ? 'Matches salary + allowance.' : `<span class="warn">Differs from agreed ${rm(totalPay(e))}: ${d>0?'short by ':'extra '}${rm(Math.abs(d))}. It will be flagged on the dashboard.</span>`;
 }
 $('pamt').addEventListener('input', checkAmt);
 $('pf').addEventListener('submit', () => {
@@ -226,8 +266,8 @@ $('list').addEventListener('click', ev => {
   if (a === 'unpay') { e.paid = null; save(); render(); }
   if (a === 'pay') {
     payId = e.id;
-    $('pinfo').textContent = e.loc + ' · ' + fmtDate(e.date) + ' · agreed ' + rm(e.salary);
-    $('pdate').value = today(); $('pamt').value = e.salary; checkAmt();
+    $('pinfo').textContent = e.loc + ' · ' + fmtDate(e.date) + ' · salary + allowance ' + rm(totalPay(e));
+    $('pdate').value = today(); $('pamt').value = totalPay(e); checkAmt();
     $('payd').showModal();
   }
 });
