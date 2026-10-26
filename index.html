@@ -1,357 +1,772 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Event Pay Tracker</title>
-<style>
-:root{--bg:#eef1f5;--card:#fff;--ink:#17202e;--mute:#667085;--line:#d9dfe8;--blue:#1f4fd8;--green:#157a4a;--greenbg:#e2f4EA;--amber:#a15c00;--amberbg:#fdf0d5;--red:#b42318;--redbg:#fde8e6;--grey:#e8ecf2}
-@media(prefers-color-scheme:dark){:root{--bg:#10151d;--card:#192130;--ink:#e8edf5;--mute:#95a0b3;--line:#2b3547;--blue:#7ea0ff;--green:#5fd39a;--greenbg:#16342a;--amber:#f2b84b;--amberbg:#3a2d12;--red:#ff8a80;--redbg:#3d1c19;--grey:#232d3f}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-main{max-width:920px;margin:0 auto;padding:20px 16px 60px}
-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
-h1{font-size:1.5rem;margin:0}
-button,input{font:inherit}
-.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:8px;cursor:pointer}
-.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
-[data-theme] .btn.primary{color:#fff}
-@media(prefers-color-scheme:dark){.btn.primary{color:#0b1220}}
-.btn.good{background:var(--green);border-color:var(--green);color:#fff}
-@media(prefers-color-scheme:dark){.btn.good{color:#0b1220}}
-.btn.small{padding:5px 10px;font-size:.88rem}
-.btn:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
-.stat b{display:block;font-size:1.55rem;line-height:1.2}
-.stat span{color:var(--mute);font-size:.9rem}
-.stat.owed{border-left:6px solid var(--amber)}
-.stat.paid{border-left:6px solid var(--green)}
-.stat.short{border-left:6px solid var(--red)}
-.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-.tabs button{border:1px solid var(--line);background:transparent;color:var(--ink);padding:6px 14px;border-radius:999px;cursor:pointer}
-.tabs button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.ev{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:grid;grid-template-columns:1fr auto;gap:8px 16px}
-.ev h3{margin:0;font-size:1.05rem}
-.when{font-weight:600}
-.meta{color:var(--mute);font-size:.93rem}
-.pay{text-align:right}
-.pay b{font-size:1.25rem}
-.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.82rem;font-weight:600;margin-top:4px}
-.b-up{background:var(--grey);color:var(--mute)}
-.b-wait{background:var(--amberbg);color:var(--amber)}
-.b-paid{background:var(--greenbg);color:var(--green)}
-.b-short{background:var(--redbg);color:var(--red)}
-.acts{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px}
-.empty{background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:28px;text-align:center;color:var(--mute)}
-dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(480px,94vw);padding:20px}
-dialog::backdrop{background:rgba(0,0,0,.45)}
-dialog h2{margin:0 0 12px;font-size:1.2rem}
-label{display:block;font-size:.9rem;font-weight:600;margin:10px 0 4px}
-input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
-.note{font-size:.9rem;margin-top:8px}
-.warn{color:var(--red)}
-.dayhint{color:var(--mute);font-size:.88rem;margin-top:4px}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Event Tracker</title>
+  <style>
+    :root {
+      --bg: #eef1f5;
+      --card: #fff;
+      --ink: #17202e;
+      --mute: #667085;
+      --line: #d9dfe8;
+      --blue: #1f4fd8;
+      --green: #157a4a;
+      --greenbg: #e2f4EA;
+      --amber: #a15c00;
+      --amberbg: #fdf0d5;
+      --red: #b42318;
+      --redbg: #fde8e6;
+      --grey: #e8ecf2
+    }
 
-.calendar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:16px 0;flex-wrap:wrap}.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.weekday{text-align:center;color:var(--mute);font-size:.8rem;padding:6px}.cal-day{min-height:90px;padding:7px 4px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);cursor:pointer;text-align:left;overflow:hidden}.cal-day.has-events{border-color:var(--blue);background:var(--grey)}.cal-day.selected{outline:2px solid var(--blue)}.cal-day.today strong{background:var(--blue);color:var(--card);border-radius:50%;padding:2px 5px}.cal-day small{display:block;font-size:.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.calendar-summary{margin:12px 0;color:var(--mute)}.cal-blank{min-height:90px}.calendar-details{margin-top:18px}@media(max-width:540px){.cal-day,.cal-blank{min-height:74px}.cal-day small{font-size:.63rem}.ev{grid-template-columns:1fr}.pay{text-align:left}}
-</style>
+    @media(prefers-color-scheme:dark) {
+      :root {
+        --bg: #10151d;
+        --card: #192130;
+        --ink: #e8edf5;
+        --mute: #95a0b3;
+        --line: #2b3547;
+        --blue: #7ea0ff;
+        --green: #5fd39a;
+        --greenbg: #16342a;
+        --amber: #f2b84b;
+        --amberbg: #3a2d12;
+        --red: #ff8a80;
+        --redbg: #3d1c19;
+        --grey: #232d3f
+      }
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif
+    }
+
+    main {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 20px 16px 60px
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin: 0
+    }
+
+    button,
+    input {
+      font: inherit
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--ink);
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer
+    }
+
+    .btn.primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+      font-weight: 600
+    }
+
+    [data-theme] .btn.primary {
+      color: #fff
+    }
+
+    @media(prefers-color-scheme:dark) {
+      .btn.primary {
+        color: #0b1220
+      }
+    }
+
+    .btn.good {
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff
+    }
+
+    @media(prefers-color-scheme:dark) {
+      .btn.good {
+        color: #0b1220
+      }
+    }
+
+    .btn.small {
+      padding: 5px 10px;
+      font-size: .88rem
+    }
+
+    .btn:focus-visible,
+    input:focus-visible {
+      outline: 3px solid var(--blue);
+      outline-offset: 2px
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px
+    }
+
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px
+    }
+
+    .stat b {
+      display: block;
+      font-size: 1.55rem;
+      line-height: 1.2
+    }
+
+    .stat span {
+      color: var(--mute);
+      font-size: .9rem
+    }
+
+    .stat.owed {
+      border-left: 6px solid var(--amber)
+    }
+
+    .stat.paid {
+      border-left: 6px solid var(--green)
+    }
+
+    .stat.short {
+      border-left: 6px solid var(--red)
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 14px
+    }
+
+    .tabs button {
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink);
+      padding: 6px 14px;
+      border-radius: 999px;
+      cursor: pointer
+    }
+
+    .tabs button[aria-pressed=true] {
+      background: var(--ink);
+      color: var(--bg);
+      border-color: var(--ink)
+    }
+
+    .ev {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 16px
+    }
+
+    .ev h3 {
+      margin: 0;
+      font-size: 1.05rem
+    }
+
+    .when {
+      font-weight: 600
+    }
+
+    .meta {
+      color: var(--mute);
+      font-size: .93rem
+    }
+
+    .pay {
+      text-align: right
+    }
+
+    .pay b {
+      font-size: 1.25rem
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: .82rem;
+      font-weight: 600;
+      margin-top: 4px
+    }
+
+    .b-up {
+      background: var(--grey);
+      color: var(--mute)
+    }
+
+    .b-wait {
+      background: var(--amberbg);
+      color: var(--amber)
+    }
+
+    .b-paid {
+      background: var(--greenbg);
+      color: var(--green)
+    }
+
+    .b-short {
+      background: var(--redbg);
+      color: var(--red)
+    }
+
+    .acts {
+      grid-column: 1/-1;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--line);
+      padding-top: 10px
+    }
+
+    .empty {
+      background: var(--card);
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      padding: 28px;
+      text-align: center;
+      color: var(--mute)
+    }
+
+    dialog {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--card);
+      color: var(--ink);
+      width: min(480px, 94vw);
+      padding: 20px
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, .45)
+    }
+
+    dialog h2 {
+      margin: 0 0 12px;
+      font-size: 1.2rem
+    }
+
+    label {
+      display: block;
+      font-size: .9rem;
+      font-weight: 600;
+      margin: 10px 0 4px
+    }
+
+    input {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--ink)
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px
+    }
+
+    .foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 18px
+    }
+
+    .note {
+      font-size: .9rem;
+      margin-top: 8px
+    }
+
+    .warn {
+      color: var(--red)
+    }
+
+    .dayhint {
+      color: var(--mute);
+      font-size: .88rem;
+      margin-top: 4px
+    }
+
+    .calendar-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 16px 0;
+      flex-wrap: wrap
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 4px
+    }
+
+    .weekday {
+      text-align: center;
+      color: var(--mute);
+      font-size: .8rem;
+      padding: 6px
+    }
+
+    .cal-day {
+      min-height: 90px;
+      padding: 7px 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--ink);
+      cursor: pointer;
+      text-align: left;
+      overflow: hidden
+    }
+
+    .cal-day.has-events {
+      border-color: var(--blue);
+      background: var(--grey)
+    }
+
+    .cal-day.selected {
+      outline: 2px solid var(--blue)
+    }
+
+    .cal-day.today strong {
+      background: var(--blue);
+      color: var(--card);
+      border-radius: 50%;
+      padding: 2px 5px
+    }
+
+    .cal-day small {
+      display: block;
+      font-size: .72rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap
+    }
+
+    .calendar-summary {
+      margin: 12px 0;
+      color: var(--mute)
+    }
+
+    .cal-blank {
+      min-height: 90px
+    }
+
+    .calendar-details {
+      margin-top: 18px
+    }
+
+    @media(max-width:540px) {
+
+      .cal-day,
+      .cal-blank {
+        min-height: 74px
+      }
+
+      .cal-day small {
+        font-size: .63rem
+      }
+
+      .ev {
+        grid-template-columns: 1fr
+      }
+
+      .pay {
+        text-align: left
+      }
+    }
+  </style>
 </head>
+
 <body>
-<main>
-<header>
-  <h1>Event Pay Tracker</h1>
-  <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <button class="btn" id="exp">Export backup</button>
-    <button class="btn" id="imp">Import</button>
-    <input type="file" id="file" accept=".json" hidden>
-    <button class="btn primary" id="add">Add event</button>
-  </div>
-</header>
+  <main>
+    <header>
+      <h1>Event Pay Tracker</h1>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="exp">Export backup</button>
+        <button class="btn" id="imp">Import</button>
+        <input type="file" id="file" accept=".json" hidden>
+        <button class="btn primary" id="add">Add event</button>
+      </div>
+    </header>
 
-<section class="stats" id="stats"></section>
-<div class="tabs" id="tabs"></div>
-<section id="calendar" hidden></section>
-<section id="list"></section>
-</main>
+    <section class="stats" id="stats"></section>
+    <div class="tabs" id="tabs"></div>
+    <section id="calendar" hidden></section>
+    <div id="bulk" class="calendar-head"></div>
+    <section id="list"></section>
+  </main>
 
-<dialog id="form">
-  <form method="dialog" id="f">
-    <h2 id="ftitle">Add event</h2>
-    <label for="pasteInfo">Paste event information</label>
-    <textarea id="pasteInfo" rows="5" placeholder="Paste the event message here to auto-fill the fields below." style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical"></textarea>
-    <div class="dayhint" id="pasteResult" role="status" aria-live="polite">Fields fill automatically. Review them before saving.</div>
-    <label for="date">Date</label>
-    <input type="date" id="date" required>
-    <div class="dayhint" id="day"></div>
-    <div class="row">
-      <div><label for="start">Start time</label><input type="time" id="start" required></div>
-      <div><label for="end">End time</label><input type="time" id="end" required></div>
-    </div>
-    <label for="salary">Salary for this event (RM)</label>
-    <input type="number" id="salary" min="0" step="0.01" required>
-    <label for="allowance">Allowance for this event (RM)</label>
-    <input type="number" id="allowance" min="0" step="0.01" value="0">
-    <div class="dayhint" id="eventTotal"></div>
-    <label for="loc">Location name</label>
-    <input id="loc" required placeholder="e.g. Pavilion Hall">
-    <label for="addr">Address</label>
-    <input id="addr" placeholder="Street, city">
-    <div class="foot">
-      <button type="button" class="btn" id="cancel">Cancel</button>
-      <button class="btn primary" type="submit">Save event</button>
-    </div>
-  </form>
-</dialog>
+  <dialog id="form">
+    <form method="dialog" id="f">
+      <h2 id="ftitle">Add event</h2>
+      <label for="pasteInfo">Paste event information</label>
+      <textarea id="pasteInfo" rows="5" placeholder="Paste the event message here to auto-fill the fields below."
+        style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical"></textarea>
+      <div class="dayhint" id="pasteResult" role="status" aria-live="polite">Fields fill automatically. Review them
+        before saving.</div>
+      <label for="date">Date</label>
+      <input type="date" id="date" required>
+      <div class="dayhint" id="day"></div>
+      <div class="row">
+        <div><label for="start">Start time</label><input type="time" id="start" required></div>
+        <div><label for="end">End time</label><input type="time" id="end" required></div>
+      </div>
+      <label for="salary">Salary for this event (RM)</label>
+      <input type="number" id="salary" min="0" step="0.01" required>
+      <label for="allowance">Allowance for this event (RM)</label>
+      <input type="number" id="allowance" min="0" step="0.01" value="0">
+      <div class="row">
+        <div><label for="ot">Overtime pay (RM, optional)</label><input type="number" id="ot" min="0" step="0.01"
+            value="0"></div>
+        <div><label for="parking">Parking claim (RM, optional)</label><input type="number" id="parking" min="0"
+            step="0.01" value="0"></div>
+      </div>
+      <div class="dayhint">Enter the total overtime amount and parking reimbursement to claim. Leave 0 when not
+        applicable.</div>
+      <div class="dayhint" id="eventTotal"></div>
+      <label for="loc">Location name</label>
+      <input id="loc" required placeholder="e.g. Pavilion Hall">
+      <label for="addr">Address</label>
+      <input id="addr" placeholder="Street, city">
+      <div class="foot">
+        <button type="button" class="btn" id="cancel">Cancel</button>
+        <button class="btn primary" type="submit">Save event</button>
+      </div>
+    </form>
+  </dialog>
 
-<dialog id="payd">
-  <form method="dialog" id="pf">
-    <h2>Mark as paid</h2>
-    <div class="meta" id="pinfo"></div>
-    <label for="pdate">Date received</label>
-    <input type="date" id="pdate" required>
-    <label for="pamt">Amount you received (RM)</label>
-    <input type="number" id="pamt" min="0" step="0.01" required>
-    <div class="note" id="pcheck"></div>
-    <div class="foot">
-      <button type="button" class="btn" id="pcancel">Cancel</button>
-      <button class="btn good" type="submit">Confirm paid</button>
-    </div>
-  </form>
-</dialog>
+  <dialog id="payd">
+    <form method="dialog" id="pf">
+      <h2>Record company payment</h2>
+      <div class="meta" id="pinfo"></div>
+      <label for="pdate">Date received</label>
+      <input type="date" id="pdate" required>
+      <label for="pamt">Amount you received (RM)</label>
+      <input type="number" id="pamt" min="0.01" step="0.01" required>
+      <div class="note" id="pcheck" role="status" aria-live="polite"></div>
+      <div id="allocations"></div>
+      <div class="foot">
+        <button type="button" class="btn" id="pcancel">Cancel</button>
+        <button class="btn good" type="submit">Save payment</button>
+      </div>
+    </form>
+  </dialog>
 
-<script>
-const KEY = 'eventPayTracker.v1';
-const $ = id => document.getElementById(id);
-const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-let events = [], filter = 'all', editId = null, payId = null;
-let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1), selectedDate = null;
-const totalPay = e => Math.round((Number(e.salary || 0) + Number(e.allowance || 0)) * 100) / 100;
+  <script>
+    const KEY = 'eventPayTracker.v1';
+    const $ = id => document.getElementById(id);
+    const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    let events = [], filter = 'all', editId = null, payId = null;
+    const selectedEvents = new Set();
+    let paymentIds = [];
+    const cents = n => Math.round(Number(n || 0) * 100);
+    const ownPayments = e => Array.isArray(e.payments) ? e.payments : e.paid ? [{ amount: Number(e.paid.amount), date: e.paid.date }] : [];
+    const groupOf = e => e.paymentGroup ? (events.find(x => x.paymentGroup?.id === e.paymentGroup.id)?.paymentGroup || e.paymentGroup) : null;
+    const members = e => { const g = groupOf(e); return g ? events.filter(x => x.paymentGroup?.id === g.id) : [e]; };
+    const payments = e => groupOf(e)?.payments || ownPayments(e);
+    const received = e => payments(e).reduce((n, p) => n + cents(p.amount), 0) / 100;
+    const expected = e => members(e).reduce((n, x) => n + cents(totalPay(x)), 0) / 100;
+    const balance = e => Math.max(0, cents(expected(e)) - cents(received(e))) / 100;
+    const uniqueUnits = items => [...new Map(items.map(e => [groupOf(e)?.id || 'event:' + e.id, e])).values()];
+    const sumBalances = items => uniqueUnits(items).reduce((n, e) => n + cents(balance(e)), 0) / 100;
+    function selectUnit(e, checked) { members(e).forEach(x => checked ? selectedEvents.add(x.id) : selectedEvents.delete(x.id)); }
+    function writeGroup(g) { events.forEach(e => { if (e.paymentGroup?.id === g.id) e.paymentGroup = g; }); }
+    let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1), selectedDate = null;
+    const totalPay = e => Math.round((Number(e.salary || 0) + Number(e.allowance || 0) + Number(e.ot || 0) + Number(e.parking || 0)) * 100) / 100;
 
-try { events = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { events = []; }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(events)); } catch (e) { alert('Could not save in this browser. Use Export backup.'); } }
+    try { events = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { events = []; }
+    function save() { try { localStorage.setItem(KEY, JSON.stringify(events)); } catch (e) { alert('Could not save in this browser. Use Export backup.'); } }
 
-const rm = n => 'RM ' + Number(n).toLocaleString('en-MY', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
-const dayName = ds => ds ? DAYS[new Date(ds + 'T00:00').getDay()] : '';
-const fmtDate = ds => new Date(ds + 'T00:00').toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'});
-const fmtTime = t => { const [h,m] = t.split(':').map(Number); return ((h % 12) || 12) + ':' + String(m).padStart(2,'0') + ' ' + (h < 12 ? 'AM' : 'PM'); };
-const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const rm = n => 'RM ' + Number(n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+    const dayName = ds => ds ? DAYS[new Date(ds + 'T00:00').getDay()] : '';
+    const fmtDate = ds => new Date(ds + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const fmtTime = t => { const [h, m] = t.split(':').map(Number); return ((h % 12) || 12) + ':' + String(m).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM'); };
+    const esc = s => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-function status(e) {
-  if (e.paid) return Math.abs(e.paid.amount - totalPay(e)) > 0.004 ? 'short' : 'paid';
-  const end = new Date(e.date + 'T' + e.end);
-  return end < new Date() ? 'wait' : 'up';
-}
+    function status(e) {
+      if (payments(e).length) return balance(e) > 0 ? 'short' : 'paid';
+      const end = new Date(e.date + 'T' + e.end);
+      return end < new Date() ? 'wait' : 'up';
+    }
 
-function render() {
-  const s = events.map(e => ({...e, st: status(e)}));
-  const owed = s.filter(e => e.st === 'wait');
-  const upc = s.filter(e => e.st === 'up');
-  const month = today().slice(0,7);
-  const paidM = s.filter(e => e.paid && e.paid.date.slice(0,7) === month).reduce((a,e) => a + e.paid.amount, 0);
-  const shorts = s.filter(e => e.st === 'short');
-  const diff = shorts.reduce((a,e) => a + (totalPay(e) - e.paid.amount), 0);
+    function render() {
+      const s = events.map(e => ({ ...e, st: status(e) }));
+      const owed = s.filter(e => e.st === 'wait');
+      const upc = s.filter(e => e.st === 'up');
+      const month = today().slice(0, 7);
+      const paidM = uniqueUnits(s).reduce((n, e) => n + payments(e).filter(p => p.date.slice(0, 7) === month).reduce((a, p) => a + cents(p.amount), 0), 0) / 100;
+      const shorts = s.filter(e => e.st === 'short');
+      const diff = sumBalances(shorts);
+      const outstanding = s.filter(e => e.st === 'short' || e.st === 'wait');
 
-  $('stats').innerHTML =
-    `<div class="stat owed"><b>${rm(owed.reduce((a,e)=>a+totalPay(e),0))}</b><span>Waiting to be paid (${owed.length} done events)</span></div>
-     <div class="stat"><b>${rm(upc.reduce((a,e)=>a+totalPay(e),0))}</b><span>Upcoming (${upc.length} events)</span></div>
+      $('stats').innerHTML =
+        `<div class="stat owed"><b>${rm(sumBalances(owed))}</b><span>Waiting to be paid (${owed.length} done events)</span></div>
+     <div class="stat"><b>${rm(upc.reduce((a, e) => a + totalPay(e), 0))}</b><span>Upcoming (${upc.length} events)</span></div>
      <div class="stat paid"><b>${rm(paidM)}</b><span>Received this month</span></div>` +
-    (shorts.length ? `<div class="stat short"><b>${rm(Math.abs(diff))}</b><span>${diff>0?'Underpaid':'Overpaid'} across ${shorts.length} event(s)</span></div>` : '');
+        (shorts.length ? `<div class="stat short"><b>${rm(Math.abs(diff))}</b><span>Company still owes you · ${shorts.length} event(s)</span></div>` : '');
 
-  const salaryTotal = s.reduce((a,e)=>a+Number(e.salary || 0),0), allowanceTotal = s.reduce((a,e)=>a+Number(e.allowance || 0),0);
-  $('stats').innerHTML += `<div class="stat"><b>${rm(salaryTotal)}</b><span>Total salary · all events</span></div><div class="stat"><b>${rm(allowanceTotal)}</b><span>Total allowance · all events</span></div><div class="stat"><b>${rm(salaryTotal+allowanceTotal)}</b><span>Total expected pay · salary + allowance</span></div>`;
-  const tabs = [['calendar','Calendar',s.length],['all','All',s.length],['up','Upcoming',upc.length],['wait','Waiting for pay',owed.length],['paid','Paid',s.filter(e=>e.paid).length]];
-  $('tabs').innerHTML = tabs.map(t => `<button aria-pressed="${filter===t[0]}" data-f="${t[0]}">${t[1]} (${t[2]})</button>`).join('');
+      const salaryTotal = s.reduce((a, e) => a + Number(e.salary || 0), 0), allowanceTotal = s.reduce((a, e) => a + Number(e.allowance || 0) + Number(e.ot || 0) + Number(e.parking || 0), 0);
+      $('stats').innerHTML += `<div class="stat"><b>${rm(salaryTotal)}</b><span>Total salary · all events</span></div><div class="stat"><b>${rm(allowanceTotal)}</b><span>Total allowance · includes OT + parking</span></div><div class="stat"><b>${rm(s.reduce((n, e) => n + totalPay(e), 0))}</b><span>Total expected · salary + allowance + OT + parking</span></div>`;
+      const tabs = [['calendar', 'Calendar', s.length], ['all', 'All', s.length], ['up', 'Upcoming', upc.length], ['wait', 'Waiting for pay', owed.length], ['short', 'Underpaid', shorts.length], ['outstanding', 'Outstanding', outstanding.length], ['paid', 'Paid in full', s.filter(e => e.st === 'paid').length]];
+      $('tabs').innerHTML = tabs.map(t => `<button aria-pressed="${filter === t[0]}" data-f="${t[0]}">${t[1]} (${t[2]})</button>`).join('');
 
-  $('calendar').hidden = filter !== 'calendar';
-  if (filter === 'calendar') renderCalendar();
-  let list = s.filter(e => (filter==='calendar' ? e.date === selectedDate : filter==='all') || (filter==='paid' ? !!e.paid : e.st===filter));
-  list.sort((a,b) => filter==='paid' || filter==='all' && false ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+      $('calendar').hidden = filter !== 'calendar';
+      if (filter === 'calendar') renderCalendar();
+      let list = s.filter(e => (filter === 'calendar' ? e.date === selectedDate : filter === 'all') || (filter === 'outstanding' ? e.st === 'wait' || e.st === 'short' : e.st === filter));
+      list.sort((a, b) => filter === 'paid' || filter === 'all' && false ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
 
-  if (!list.length) {
-    $('list').innerHTML = `<div class="empty">${s.length ? (filter==='calendar' ? 'Select an event date above to see its details.' : 'No events in this view.') : 'No events yet. Press “Add event” to record your first one.'}</div>`;
-    return;
-  }
-  const badge = {up:['b-up','Upcoming'], wait:['b-wait','Event done · waiting for pay'], paid:['b-paid','Paid'], short:['b-short','Paid · amount differs']};
-  $('list').innerHTML = list.map(e => {
-    const b = badge[e.st];
-    const paidLine = e.paid ? `<div class="meta">Received ${rm(e.paid.amount)} on ${fmtDate(e.paid.date)}${e.st==='short' ? ` <span class="warn">(${e.paid.amount < totalPay(e) ? 'short by ' : 'extra '}${rm(Math.abs(totalPay(e) - e.paid.amount))})</span>` : ''}</div>` : '';
-    return `<article class="ev">
+      if (filter === 'short' || filter === 'outstanding') list.sort((a, b) => (groupOf(a)?.id || a.id).localeCompare(groupOf(b)?.id || b.id));
+      for (const id of selectedEvents) if (!events.some(e => e.id === id && balance(e) > 0)) selectedEvents.delete(id);
+      $('bulk').innerHTML = `<button class="btn" id="selectVisible">Select unpaid events in this view</button><button class="btn" id="clearSelection">Clear selection</button><button class="btn primary" id="bulkPay" ${selectedEvents.size ? '' : 'disabled'}>Record payment (${selectedEvents.size} selected)</button><span class="meta">Selected balance: ${rm(sumBalances(events.filter(e => selectedEvents.has(e.id))))}</span>`;
+      $('selectVisible').onclick = () => { list.filter(e => balance(e) > 0).forEach(e => selectUnit(e, true)); render(); };
+      $('clearSelection').onclick = () => { selectedEvents.clear(); render(); };
+      $('bulkPay').onclick = () => openPayment([...selectedEvents]);
+      if (!list.length) {
+        $('list').innerHTML = `<div class="empty">${s.length ? (filter === 'calendar' ? 'Select an event date above to see its details.' : 'No events in this view.') : 'No events yet. Press “Add event” to record your first one.'}</div>`;
+        return;
+      }
+      const badge = { up: ['b-up', 'Upcoming'], wait: ['b-wait', 'Event done · waiting for pay'], paid: ['b-paid', 'Paid'], short: ['b-short', 'Part paid · balance owed'] };
+      $('list').innerHTML = list.map(e => {
+        const b = badge[e.st];
+        const g = groupOf(e);
+        const groupLabel = g ? `Shared payment · ${members(e).length} events · ` : '';
+        const paidLine = payments(e).length || g ? `<div class="meta">${groupLabel}Received ${rm(received(e))} · ${balance(e) > 0 ? `<strong class="warn">${g ? 'This group is still owed' : 'Company owes'} ${rm(balance(e))}</strong>` : 'Paid in full'}${received(e) > expected(e) ? ` · Extra received ${rm(received(e) - expected(e))}` : ''}</div>${g ? `<div class="dayhint">${members(e).map(x => esc(x.loc) + ' (' + fmtDate(x.date) + ')').join(' + ')}. Shared balance counted once on dashboard.</div>` : ''}<details><summary class="meta">${g ? 'Group payment' : 'Payment'} history</summary>${payments(e).map(p => `<div class="meta">${fmtDate(p.date)} · ${rm(p.amount)}</div>`).join('')}</details>` : '';
+        return `<article class="ev">
       <div>
-        <h3>${esc(e.loc)}</h3>
+        <h3>${esc(e.loc)}</h3>${balance(e) > 0 ? `<label><input type="checkbox" style="width:auto" data-select="${esc(e.id)}" ${selectedEvents.has(e.id) ? 'checked' : ''}> Select for payment</label>` : ''}
         <div class="when">${dayName(e.date)}, ${fmtDate(e.date)} · ${fmtTime(e.start)} – ${fmtTime(e.end)}</div>
         <div class="meta">${esc(e.addr) || 'No address'}</div>
         ${paidLine}
       </div>
-      <div class="pay"><b>${rm(totalPay(e))}</b><div class="meta">Salary ${rm(e.salary)}<br>Allowance ${rm(e.allowance || 0)}</div><span class="badge ${b[0]}">${b[1]}</span></div>
+      <div class="pay"><b>${rm(totalPay(e))}</b><div class="meta">Salary ${rm(e.salary)}<br>Allowance ${rm(e.allowance || 0)}<br>OT ${rm(e.ot || 0)}<br>Parking claim ${rm(e.parking || 0)}</div><span class="badge ${b[0]}">${b[1]}</span></div>
       <div class="acts">
-        ${e.paid ? `<button class="btn small" data-a="unpay" data-id="${e.id}">Undo paid</button>` : `<button class="btn small good" data-a="pay" data-id="${e.id}">Mark as paid</button>`}
+        ${balance(e) > 0 ? `<button class="btn small good" data-a="pay" data-id="${esc(e.id)}">${payments(e).length ? 'Receive remaining balance' : 'Record payment'}</button>` : ''}
         <button class="btn small" data-a="edit" data-id="${e.id}">Edit</button>
         <button class="btn small" data-a="del" data-id="${e.id}">Delete</button>
       </div>
     </article>`;
-  }).join('');
-}
-
-
-function updateEventTotal() {
-  $('eventTotal').textContent = 'Total expected pay: ' + rm(Number($('salary').value || 0) + Number($('allowance').value || 0));
-}
-$('salary').addEventListener('input', updateEventTotal);
-$('allowance').addEventListener('input', updateEventTotal);
-function renderCalendar() {
-  const y = calendarMonth.getFullYear(), m = calendarMonth.getMonth();
-  const monthKey = y + '-' + String(m+1).padStart(2,'0');
-  const monthly = events.filter(e=>e.date.slice(0,7)===monthKey);
-  const cells = [];
-  for(let i=0;i<new Date(y,m,1).getDay();i++) cells.push('<div class="cal-blank"></div>');
-  for(let d=1;d<=new Date(y,m+1,0).getDate();d++) {
-    const ds = monthKey + '-' + String(d).padStart(2,'0'), entries = monthly.filter(e=>e.date===ds).sort((a,b)=>a.start.localeCompare(b.start));
-    cells.push(`<button class="cal-day ${entries.length?'has-events':''} ${ds===today()?'today':''} ${ds===selectedDate?'selected':''}" data-date="${ds}" aria-label="${ds}: ${entries.length} events" aria-pressed="${ds===selectedDate}"><strong>${d}</strong>${entries.length?`<small>${entries.length} event${entries.length===1?'':'s'}</small>`:''}${entries.slice(0,2).map(e=>`<small>${esc(e.start)} ${esc(e.loc)}</small>`).join('')}${entries.length>2?'<small>+ more</small>':''}</button>`);
-  }
-  $('calendar').innerHTML = `<div class="calendar-head"><button class="btn" data-month="-1" aria-label="Previous month">← Previous</button><h2>${calendarMonth.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</h2><button class="btn" data-month="1" aria-label="Next month">Next →</button><button class="btn" data-today>Today</button></div><div class="calendar-summary">${monthly.length} events · Salary ${rm(monthly.reduce((a,e)=>a+Number(e.salary),0))} · Allowance ${rm(monthly.reduce((a,e)=>a+Number(e.allowance || 0),0))} · Total ${rm(monthly.reduce((a,e)=>a+totalPay(e),0))}</div><div class="calendar-grid">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="weekday">${d}</div>`).join('')}${cells.join('')}</div><h3>${selectedDate?dayName(selectedDate)+', '+fmtDate(selectedDate):'Event details'}</h3>`;
-}
-$('calendar').addEventListener('click', ev=>{
-  const b=ev.target.closest('button'); if(!b)return;
-  if(b.dataset.month) { calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+Number(b.dataset.month),1); selectedDate=null; }
-  if(b.hasAttribute('data-today')) { const d=new Date();calendarMonth=new Date(d.getFullYear(),d.getMonth(),1);selectedDate=today(); }
-  if(b.dataset.date) selectedDate=b.dataset.date;
-  render();
-});
-
-
-/* Parse recruitment messages locally; only identified fields are filled. */
-function parseEventMessage(text) {
-  const out = {}, months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
-  const dm = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\s+(\d{4})\b/i);
-  if(dm) {
-    const month = months.findIndex(m=>m===dm[2].toLowerCase() || m.slice(0,3)===dm[2].toLowerCase());
-    const d = new Date(Number(dm[3]),month,Number(dm[1]));
-    if(month>=0 && d.getMonth()===month && d.getDate()===Number(dm[1])) out.date=dm[3]+'-'+String(month+1).padStart(2,'0')+'-'+dm[1].padStart(2,'0');
-  }
-  function timeValue(raw, meridiem) {
-    let h,m;
-    if(raw.includes(':')) [h,m]=raw.split(':').map(Number);
-    else if(raw.length>2) {h=Number(raw.slice(0,-2));m=Number(raw.slice(-2));}
-    else {h=Number(raw);m=0;}
-    if(m>59 || (meridiem ? h<1 || h>12 : h>23)) return null;
-    if(meridiem) h=h%12+(meridiem.toLowerCase()==='pm'?12:0);
-    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
-  }
-  const tm=text.match(/\b(\d{1,4}(?::\d{2})?)\s*(am|pm)?\s*(?:to|[-–—])\s*(\d{1,4}(?::\d{2})?)\s*(am|pm)\b/i);
-  if(tm) {
-    const start=timeValue(tm[1],tm[2]||tm[4]),end=timeValue(tm[3],tm[4]);
-    if(start) out.start=start; if(end) out.end=end;
-  }
-  const money = [...text.matchAll(/RM\s*([\d,]+(?:\.\d{1,2})?)([^\n\r+]*)(?:\+)?/gi)];
-  for(const match of money) {
-    const amount=Number(match[1].replace(/,/g,''));
-    if(!Number.isFinite(amount)) continue;
-    if(/allowance/i.test(match[2])) out.allowance=(out.allowance||0)+amount;
-    else if(out.salary===undefined) out.salary=amount;
-  }
-  if(out.salary!==undefined && out.allowance===undefined) out.allowance=0;
-  const lines=text.split(/\r?\n/).map(l=>l.trim());
-  const idx=lines.findIndex(l=>/📍|^(?:event\s+)?(?:location|venue)\s*:/i.test(l));
-  if(idx>=0) {
-    out.loc=lines[idx].replace(/^.*?📍\s*|^(?:event\s+)?(?:location|venue)\s*:\s*/i,'').trim();
-    const addr=[];
-    for(let i=idx+1;i<lines.length;i++) {
-      const l=lines[i];
-      if(!l || /💰|RM\s*\d|vacancy|meeting\s+location|gather\s*point|payment|allowance|https?:\/\//i.test(l)) break;
-      addr.push(l.replace(/^address\s*:\s*/i,''));
+      }).join('');
     }
-    if(addr.length) out.addr=addr.join(', ');
-  }
-  return out;
-}
-$('pasteInfo').addEventListener('input',()=>{
-  const text=$('pasteInfo').value;
-  if(!text.trim()) { $('pasteResult').textContent='Fields fill automatically. Review them before saving.';return; }
-  const fields=parseEventMessage(text), names={date:'date',start:'start time',end:'end time',loc:'location',addr:'address',salary:'salary',allowance:'allowance'};
-  for(const [key,value] of Object.entries(fields)) $(key).value=value;
-  $('day').textContent=dayName($('date').value);updateEventTotal();
-  const found=Object.keys(fields),missing=Object.keys(names).filter(k=>!(k in fields));
-  $('pasteResult').textContent=found.length ? 'Filled '+found.map(k=>names[k]).join(', ')+'. '+(missing.length?'Check or enter '+missing.map(k=>names[k]).join(', ')+'. ':'')+'Review all fields, then save.' : 'Could not identify event details. Please enter the fields manually.';
-});
 
-/* add / edit */
-function openForm(e) {
-  $('pasteInfo').value = '';
-  $('pasteResult').textContent = 'Fields fill automatically. Review them before saving.';
-  editId = e ? e.id : null;
-  $('ftitle').textContent = e ? 'Edit event' : 'Add event';
-  $('date').value = e ? e.date : today();
-  $('start').value = e ? e.start : '';
-  $('end').value = e ? e.end : '';
-  $('salary').value = e ? e.salary : '';
-  $('allowance').value = e ? (e.allowance || 0) : 0;
-  updateEventTotal();
-  $('loc').value = e ? e.loc : '';
-  $('addr').value = e ? e.addr : '';
-  $('day').textContent = dayName($('date').value);
-  $('form').showModal();
-}
-$('date').addEventListener('input', () => $('day').textContent = dayName($('date').value));
-$('f').addEventListener('submit', ev => {
-  const data = {date:$('date').value, start:$('start').value, end:$('end').value, salary:parseFloat($('salary').value), allowance:parseFloat($('allowance').value || '0'), loc:$('loc').value.trim(), addr:$('addr').value.trim()};
-  if (editId) { const i = events.findIndex(x => x.id === editId); events[i] = {...events[i], ...data}; }
-  else events.push({id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), paid: null, ...data});
-  save(); render();
-});
-$('cancel').onclick = () => $('form').close();
-$('add').onclick = () => openForm();
 
-/* mark paid */
-function checkAmt() {
-  const e = events.find(x => x.id === payId); if (!e) return;
-  const v = parseFloat($('pamt').value), d = totalPay(e) - v;
-  $('pcheck').innerHTML = isNaN(v) ? '' : Math.abs(d) < 0.005 ? 'Matches salary + allowance.' : `<span class="warn">Differs from agreed ${rm(totalPay(e))}: ${d>0?'short by ':'extra '}${rm(Math.abs(d))}. It will be flagged on the dashboard.</span>`;
-}
-$('pamt').addEventListener('input', checkAmt);
-$('pf').addEventListener('submit', () => {
-  const e = events.find(x => x.id === payId);
-  e.paid = {amount: parseFloat($('pamt').value), date: $('pdate').value};
-  save(); render();
-});
-$('pcancel').onclick = () => $('payd').close();
+    function updateEventTotal() {
+      $('eventTotal').textContent = 'Total expected pay: ' + rm(Number($('salary').value || 0) + Number($('allowance').value || 0) + Number($('ot').value || 0) + Number($('parking').value || 0));
+    }
+    $('salary').addEventListener('input', updateEventTotal);
+    $('allowance').addEventListener('input', updateEventTotal);
+    $('ot').addEventListener('input', updateEventTotal);
+    $('parking').addEventListener('input', updateEventTotal);
+    function renderCalendar() {
+      const y = calendarMonth.getFullYear(), m = calendarMonth.getMonth();
+      const monthKey = y + '-' + String(m + 1).padStart(2, '0');
+      const monthly = events.filter(e => e.date.slice(0, 7) === monthKey);
+      const cells = [];
+      for (let i = 0; i < new Date(y, m, 1).getDay(); i++) cells.push('<div class="cal-blank"></div>');
+      for (let d = 1; d <= new Date(y, m + 1, 0).getDate(); d++) {
+        const ds = monthKey + '-' + String(d).padStart(2, '0'), entries = monthly.filter(e => e.date === ds).sort((a, b) => a.start.localeCompare(b.start));
+        cells.push(`<button class="cal-day ${entries.length ? 'has-events' : ''} ${ds === today() ? 'today' : ''} ${ds === selectedDate ? 'selected' : ''}" data-date="${ds}" aria-label="${ds}: ${entries.length} events" aria-pressed="${ds === selectedDate}"><strong>${d}</strong>${entries.length ? `<small>${entries.length} event${entries.length === 1 ? '' : 's'}</small>` : ''}${entries.slice(0, 2).map(e => `<small>${esc(e.start)} ${esc(e.loc)}</small>`).join('')}${entries.length > 2 ? '<small>+ more</small>' : ''}</button>`);
+      }
+      $('calendar').innerHTML = `<div class="calendar-head"><button class="btn" data-month="-1" aria-label="Previous month">← Previous</button><h2>${calendarMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</h2><button class="btn" data-month="1" aria-label="Next month">Next →</button><button class="btn" data-today>Today</button></div><div class="calendar-summary">${monthly.length} events · Salary ${rm(monthly.reduce((a, e) => a + Number(e.salary), 0))} · Allowance ${rm(monthly.reduce((a, e) => a + Number(e.allowance || 0), 0))} · OT ${rm(monthly.reduce((n, e) => n + Number(e.ot || 0), 0))} · Parking ${rm(monthly.reduce((n, e) => n + Number(e.parking || 0), 0))} · Total ${rm(monthly.reduce((a, e) => a + totalPay(e), 0))}</div><div class="calendar-grid">${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => `<div class="weekday">${d}</div>`).join('')}${cells.join('')}</div><h3>${selectedDate ? dayName(selectedDate) + ', ' + fmtDate(selectedDate) : 'Event details'}</h3>`;
+    }
+    $('calendar').addEventListener('click', ev => {
+      const b = ev.target.closest('button'); if (!b) return;
+      if (b.dataset.month) { calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + Number(b.dataset.month), 1); selectedDate = null; }
+      if (b.hasAttribute('data-today')) { const d = new Date(); calendarMonth = new Date(d.getFullYear(), d.getMonth(), 1); selectedDate = today(); }
+      if (b.dataset.date) selectedDate = b.dataset.date;
+      render();
+    });
 
-/* list actions */
-$('list').addEventListener('click', ev => {
-  const b = ev.target.closest('button[data-a]'); if (!b) return;
-  const e = events.find(x => x.id === b.dataset.id), a = b.dataset.a;
-  if (a === 'edit') openForm(e);
-  if (a === 'del' && confirm('Delete this event?')) { events = events.filter(x => x.id !== e.id); save(); render(); }
-  if (a === 'unpay') { e.paid = null; save(); render(); }
-  if (a === 'pay') {
-    payId = e.id;
-    $('pinfo').textContent = e.loc + ' · ' + fmtDate(e.date) + ' · salary + allowance ' + rm(totalPay(e));
-    $('pdate').value = today(); $('pamt').value = totalPay(e); checkAmt();
-    $('payd').showModal();
-  }
-});
-$('tabs').addEventListener('click', ev => { const b = ev.target.closest('button[data-f]'); if (b) { filter = b.dataset.f; render(); } });
 
-/* backup */
-$('exp').onclick = () => {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(events, null, 2)], {type:'application/json'}));
-  a.download = 'event-pay-backup-' + today() + '.json'; a.click();
-};
-$('imp').onclick = () => $('file').click();
-$('file').onchange = async () => {
-  try {
-    const d = JSON.parse(await $('file').files[0].text());
-    if (!Array.isArray(d)) throw 0;
-    if (confirm('Replace current data with ' + d.length + ' events from this backup?')) { events = d; save(); render(); }
-  } catch (e) { alert('That file is not a valid backup.'); }
-  $('file').value = '';
-};
+    /* Parse recruitment messages locally; only identified fields are filled. */
+    function parseEventMessage(text) {
+      const out = {}, months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+      const dm = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\s+(\d{4})\b/i);
+      if (dm) {
+        const month = months.findIndex(m => m === dm[2].toLowerCase() || m.slice(0, 3) === dm[2].toLowerCase());
+        const d = new Date(Number(dm[3]), month, Number(dm[1]));
+        if (month >= 0 && d.getMonth() === month && d.getDate() === Number(dm[1])) out.date = dm[3] + '-' + String(month + 1).padStart(2, '0') + '-' + dm[1].padStart(2, '0');
+      }
+      function timeValue(raw, meridiem) {
+        let h, m;
+        if (raw.includes(':')) [h, m] = raw.split(':').map(Number);
+        else if (raw.length > 2) { h = Number(raw.slice(0, -2)); m = Number(raw.slice(-2)); }
+        else { h = Number(raw); m = 0; }
+        if (m > 59 || (meridiem ? h < 1 || h > 12 : h > 23)) return null;
+        if (meridiem) h = h % 12 + (meridiem.toLowerCase() === 'pm' ? 12 : 0);
+        return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      }
+      const tm = text.match(/\b(\d{1,4}(?::\d{2})?)\s*(am|pm)?\s*(?:to|[-–—])\s*(\d{1,4}(?::\d{2})?)\s*(am|pm)\b/i);
+      if (tm) {
+        const start = timeValue(tm[1], tm[2] || tm[4]), end = timeValue(tm[3], tm[4]);
+        if (start) out.start = start; if (end) out.end = end;
+      }
+      const money = [...text.matchAll(/RM\s*([\d,]+(?:\.\d{1,2})?)([^\n\r+]*)(?:\+)?/gi)];
+      for (const match of money) {
+        const amount = Number(match[1].replace(/,/g, ''));
+        if (!Number.isFinite(amount)) continue;
+        if (/allowance/i.test(match[2])) out.allowance = (out.allowance || 0) + amount;
+        else if (out.salary === undefined) out.salary = amount;
+      }
+      if (out.salary !== undefined && out.allowance === undefined) out.allowance = 0;
+      const lines = text.split(/\r?\n/).map(l => l.trim());
+      const idx = lines.findIndex(l => /📍|^(?:event\s+)?(?:location|venue)\s*:/i.test(l));
+      if (idx >= 0) {
+        out.loc = lines[idx].replace(/^.*?📍\s*|^(?:event\s+)?(?:location|venue)\s*:\s*/i, '').trim();
+        const addr = [];
+        for (let i = idx + 1; i < lines.length; i++) {
+          const l = lines[i];
+          if (!l || /💰|RM\s*\d|vacancy|meeting\s+location|gather\s*point|payment|allowance|https?:\/\//i.test(l)) break;
+          addr.push(l.replace(/^address\s*:\s*/i, ''));
+        }
+        if (addr.length) out.addr = addr.join(', ');
+      }
+      return out;
+    }
+    $('pasteInfo').addEventListener('input', () => {
+      const text = $('pasteInfo').value;
+      if (!text.trim()) { $('pasteResult').textContent = 'Fields fill automatically. Review them before saving.'; return; }
+      const fields = parseEventMessage(text), names = { date: 'date', start: 'start time', end: 'end time', loc: 'location', addr: 'address', salary: 'salary', allowance: 'allowance' };
+      for (const [key, value] of Object.entries(fields)) $(key).value = value;
+      $('day').textContent = dayName($('date').value); updateEventTotal();
+      const found = Object.keys(fields), missing = Object.keys(names).filter(k => !(k in fields));
+      $('pasteResult').textContent = found.length ? 'Filled ' + found.map(k => names[k]).join(', ') + '. ' + (missing.length ? 'Check or enter ' + missing.map(k => names[k]).join(', ') + '. ' : '') + 'Review all fields, then save.' : 'Could not identify event details. Please enter the fields manually.';
+    });
 
-render();
-setInterval(render, 60000);
-</script>
+    /* add / edit */
+    function openForm(e) {
+      $('pasteInfo').value = '';
+      $('pasteResult').textContent = 'Fields fill automatically. Review them before saving.';
+      editId = e ? e.id : null;
+      $('ftitle').textContent = e ? 'Edit event' : 'Add event';
+      $('date').value = e ? e.date : today();
+      $('start').value = e ? e.start : '';
+      $('end').value = e ? e.end : '';
+      $('salary').value = e ? e.salary : '';
+      $('allowance').value = e ? (e.allowance || 0) : 0;
+      $('ot').value = e ? (e.ot || 0) : 0;
+      $('parking').value = e ? (e.parking || 0) : 0;
+      updateEventTotal();
+      $('loc').value = e ? e.loc : '';
+      $('addr').value = e ? e.addr : '';
+      $('day').textContent = dayName($('date').value);
+      $('form').showModal();
+    }
+    $('date').addEventListener('input', () => $('day').textContent = dayName($('date').value));
+    $('f').addEventListener('submit', ev => {
+      const data = { date: $('date').value, start: $('start').value, end: $('end').value, salary: parseFloat($('salary').value), allowance: parseFloat($('allowance').value || '0'), ot: parseFloat($('ot').value || '0'), parking: parseFloat($('parking').value || '0'), loc: $('loc').value.trim(), addr: $('addr').value.trim() };
+      if (editId) { const i = events.findIndex(x => x.id === editId); events[i] = { ...events[i], ...data }; }
+      else events.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), paid: null, ...data });
+      save(); render();
+    });
+    $('cancel').onclick = () => $('form').close();
+    $('add').onclick = () => openForm();
+
+    /* Single and combined receipts, stored as incremental payments. */
+    function paymentItems() { return paymentIds.map(id => events.find(e => e.id === id)).filter(Boolean); }
+    function openPayment(ids) {
+      const expanded = new Set();
+      ids.forEach(id => { const e = events.find(x => x.id === id); if (e && balance(e) > 0) members(e).forEach(x => expanded.add(x.id)); });
+      paymentIds = [...expanded];
+      const items = paymentItems(), units = uniqueUnits(items); if (!items.length) return;
+      $('pinfo').textContent = items.length + ' event(s) · Expected ' + rm(items.reduce((n, e) => n + totalPay(e), 0)) + ' · Already received ' + rm(units.reduce((n, e) => n + received(e), 0)) + ' · Remaining ' + rm(sumBalances(items));
+      $('pdate').value = today(); $('pamt').value = '';
+      $('allocations').innerHTML = items.map(e => `<div class="meta">${esc(e.loc)} · ${fmtDate(e.date)} · Expected ${rm(totalPay(e))}</div>`).join('') + (items.length > 1 ? '<p class="dayhint">One shared balance for these events. Payments are not split between events. Selecting an existing group includes all its events.</p>' : '');
+      checkAmt(); $('payd').showModal();
+    }
+    function checkAmt() {
+      const v = Number($('pamt').value), due = cents(sumBalances(paymentItems()));
+      $('pcheck').textContent = !$('pamt').value ? 'Enter the exact amount the company transferred this time.' : cents(v) < due ? 'Company will still owe ' + rm((due - cents(v)) / 100) + ' for this payment group, counted once on the dashboard.' : cents(v) === due ? 'This clears the selected balance. All events will be marked paid in full.' : 'Extra payment: ' + rm((cents(v) - due) / 100) + '. Please check the amount.';
+    }
+    $('pamt').addEventListener('input', checkAmt);
+    function recordReceipt(items, amount, date) {
+      const units = uniqueUnits(items), previous = units.flatMap(e => payments(e));
+      const g = { id: units.length === 1 && groupOf(units[0]) ? groupOf(units[0]).id : 'group:' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), payments: [...previous, { amount: cents(amount) / 100, date }] };
+      if (items.length > 1) items.forEach(e => { e.paymentGroup = g; });
+      else { items[0].payments = g.payments; items[0].paid = { amount: g.payments.reduce((n, p) => n + cents(p.amount), 0) / 100, date }; }
+    }
+    $('pf').addEventListener('submit', ev => {
+      ev.preventDefault();
+      const items = paymentItems(), value = Number($('pamt').value);
+      if (!Number.isFinite(value) || cents(value) <= 0 || !items.length || !$('pdate').value) { alert('Enter a valid payment amount and date.'); return; }
+      recordReceipt(items, value, $('pdate').value);
+      selectedEvents.clear(); save(); $('payd').close(); render();
+    });
+    $('pcancel').onclick = () => $('payd').close();
+    $('list').addEventListener('change', ev => { const id = ev.target.dataset.select; if (id) { const e = events.find(x => x.id === id); if (e) selectUnit(e, ev.target.checked); render(); } });
+
+    /* list actions */
+    $('list').addEventListener('click', ev => {
+      const b = ev.target.closest('button[data-a]'); if (!b) return;
+      const e = events.find(x => x.id === b.dataset.id), a = b.dataset.a;
+      if (a === 'edit') openForm(e);
+      if (a === 'del' && groupOf(e)) { alert('This event belongs to a shared payment group. Keep it to preserve the group payment and balance history.'); return; }
+      if (a === 'del' && confirm('Delete this event?')) { events = events.filter(x => x.id !== e.id); save(); render(); }
+      if (a === 'pay') openPayment([e.id]);
+    });
+    $('tabs').addEventListener('click', ev => { const b = ev.target.closest('button[data-f]'); if (b) { filter = b.dataset.f; render(); } });
+
+    /* backup */
+    $('exp').onclick = () => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' }));
+      a.download = 'event-pay-backup-' + today() + '.json'; a.click();
+    };
+    $('imp').onclick = () => $('file').click();
+    $('file').onchange = async () => {
+      try {
+        const d = JSON.parse(await $('file').files[0].text());
+        if (!Array.isArray(d)) throw 0;
+        if (confirm('Replace current data with ' + d.length + ' events from this backup?')) { events = d; save(); render(); }
+      } catch (e) { alert('That file is not a valid backup.'); }
+      $('file').value = '';
+    };
+
+    render();
+    setInterval(render, 60000);
+  </script>
 </body>
+
 </html>
