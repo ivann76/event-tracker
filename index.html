@@ -79,6 +79,9 @@ input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px
 <dialog id="form">
   <form method="dialog" id="f">
     <h2 id="ftitle">Add event</h2>
+    <label for="pasteInfo">Paste event information</label>
+    <textarea id="pasteInfo" rows="5" placeholder="Paste the event message here to auto-fill the fields below." style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical"></textarea>
+    <div class="dayhint" id="pasteResult" role="status" aria-live="polite">Fields fill automatically. Review them before saving.</div>
     <label for="date">Date</label>
     <input type="date" id="date" required>
     <div class="dayhint" id="day"></div>
@@ -218,8 +221,66 @@ $('calendar').addEventListener('click', ev=>{
   render();
 });
 
+
+/* Parse recruitment messages locally; only identified fields are filled. */
+function parseEventMessage(text) {
+  const out = {}, months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+  const dm = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\s+(\d{4})\b/i);
+  if(dm) {
+    const month = months.findIndex(m=>m===dm[2].toLowerCase() || m.slice(0,3)===dm[2].toLowerCase());
+    const d = new Date(Number(dm[3]),month,Number(dm[1]));
+    if(month>=0 && d.getMonth()===month && d.getDate()===Number(dm[1])) out.date=dm[3]+'-'+String(month+1).padStart(2,'0')+'-'+dm[1].padStart(2,'0');
+  }
+  function timeValue(raw, meridiem) {
+    let h,m;
+    if(raw.includes(':')) [h,m]=raw.split(':').map(Number);
+    else if(raw.length>2) {h=Number(raw.slice(0,-2));m=Number(raw.slice(-2));}
+    else {h=Number(raw);m=0;}
+    if(m>59 || (meridiem ? h<1 || h>12 : h>23)) return null;
+    if(meridiem) h=h%12+(meridiem.toLowerCase()==='pm'?12:0);
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+  }
+  const tm=text.match(/\b(\d{1,4}(?::\d{2})?)\s*(am|pm)?\s*(?:to|[-–—])\s*(\d{1,4}(?::\d{2})?)\s*(am|pm)\b/i);
+  if(tm) {
+    const start=timeValue(tm[1],tm[2]||tm[4]),end=timeValue(tm[3],tm[4]);
+    if(start) out.start=start; if(end) out.end=end;
+  }
+  const money = [...text.matchAll(/RM\s*([\d,]+(?:\.\d{1,2})?)([^\n\r+]*)(?:\+)?/gi)];
+  for(const match of money) {
+    const amount=Number(match[1].replace(/,/g,''));
+    if(!Number.isFinite(amount)) continue;
+    if(/allowance/i.test(match[2])) out.allowance=(out.allowance||0)+amount;
+    else if(out.salary===undefined) out.salary=amount;
+  }
+  if(out.salary!==undefined && out.allowance===undefined) out.allowance=0;
+  const lines=text.split(/\r?\n/).map(l=>l.trim());
+  const idx=lines.findIndex(l=>/📍|^(?:event\s+)?(?:location|venue)\s*:/i.test(l));
+  if(idx>=0) {
+    out.loc=lines[idx].replace(/^.*?📍\s*|^(?:event\s+)?(?:location|venue)\s*:\s*/i,'').trim();
+    const addr=[];
+    for(let i=idx+1;i<lines.length;i++) {
+      const l=lines[i];
+      if(!l || /💰|RM\s*\d|vacancy|meeting\s+location|gather\s*point|payment|allowance|https?:\/\//i.test(l)) break;
+      addr.push(l.replace(/^address\s*:\s*/i,''));
+    }
+    if(addr.length) out.addr=addr.join(', ');
+  }
+  return out;
+}
+$('pasteInfo').addEventListener('input',()=>{
+  const text=$('pasteInfo').value;
+  if(!text.trim()) { $('pasteResult').textContent='Fields fill automatically. Review them before saving.';return; }
+  const fields=parseEventMessage(text), names={date:'date',start:'start time',end:'end time',loc:'location',addr:'address',salary:'salary',allowance:'allowance'};
+  for(const [key,value] of Object.entries(fields)) $(key).value=value;
+  $('day').textContent=dayName($('date').value);updateEventTotal();
+  const found=Object.keys(fields),missing=Object.keys(names).filter(k=>!(k in fields));
+  $('pasteResult').textContent=found.length ? 'Filled '+found.map(k=>names[k]).join(', ')+'. '+(missing.length?'Check or enter '+missing.map(k=>names[k]).join(', ')+'. ':'')+'Review all fields, then save.' : 'Could not identify event details. Please enter the fields manually.';
+});
+
 /* add / edit */
 function openForm(e) {
+  $('pasteInfo').value = '';
+  $('pasteResult').textContent = 'Fields fill automatically. Review them before saving.';
   editId = e ? e.id : null;
   $('ftitle').textContent = e ? 'Edit event' : 'Add event';
   $('date').value = e ? e.date : today();
