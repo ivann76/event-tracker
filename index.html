@@ -1125,8 +1125,37 @@
       $('calendar').hidden = filter !== 'calendar';
       if (filter === 'calendar') renderCalendar();
       let list = s.filter(e => (filter === 'calendar' ? e.date === selectedDate : filter === 'all') || (filter === 'outstanding' ? e.st === 'wait' || e.st === 'short' : e.st === filter));
-      list.sort((a, b) => filter === 'paid' || filter === 'all' && false ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+list.sort((a, b) => {
+  if (filter === 'all') {
+    const priority = {
+      up: 0,
+      wait: 1,
+      short: 1,
+      paid: 2
+    };
 
+    const statusA = status(a);
+    const statusB = status(b);
+
+    // First: group by status
+    const groupDiff = priority[statusA] - priority[statusB];
+
+    if (groupDiff !== 0) return groupDiff;
+
+    // Second: sort dates independently within each group
+    return a.date.localeCompare(b.date) ||
+           a.start.localeCompare(b.start);
+  }
+
+  // Keep Paid tab newest first
+  if (filter === 'paid') {
+    return b.date.localeCompare(a.date);
+  }
+
+  // Other tabs earliest date first
+  return a.date.localeCompare(b.date) ||
+         a.start.localeCompare(b.start);
+});
       if (filter === 'short' || filter === 'outstanding') list.sort((a, b) => (groupOf(a)?.id || a.id).localeCompare(groupOf(b)?.id || b.id));
       for (const id of selectedEvents) if (!events.some(e => e.id === id && balance(e) > 0)) selectedEvents.delete(id);
       $('bulk').innerHTML = `<button class="btn" id="selectVisible">Select unpaid events in this view</button><button class="btn" id="clearSelection">Clear selection</button><button class="btn primary" id="bulkPay" ${selectedEvents.size ? '' : 'disabled'}>Record payment (${selectedEvents.size} selected)</button><span class="meta">Selected balance: ${rm(sumBalances(events.filter(e => selectedEvents.has(e.id))))}</span>`;
