@@ -5,8 +5,8 @@
   "start_url": "/event-tracker/",
   "scope": "/event-tracker/",
   "display": "standalone",
-  "background_color": "#090605",
-  "theme_color": "#ffa500",
+  "background_color": "#f2e6cf",
+  "theme_color": "#f2e6cf",
   "icons": [
     { "src": "/event-tracker/apple-touch-icon-v5.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
     { "src": "/event-tracker/icon-192-v5.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
