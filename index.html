@@ -699,21 +699,32 @@
         ? `<ul>${next.map(e => `<li><div><b>${esc(e.loc)}</b><span>${dayName(e.date).slice(0, 3)}, ${fmtDate(e.date)}</span></div><em>${fmtTime(e.start)}</em></li>`).join('')}</ul>`
         : '<div class="none">No upcoming events.</div>';
 
+      const salaryDetailsOpen = !!$('salary-breakdown')?.open;
       $('stats').innerHTML =
         `<div class="tiles">
-          <div class="stat t-wait"><b>${rm(sumBalances(owed))}</b><span>Waiting to be paid (${owed.length} done events)</span></div>
-          <div class="stat t-paid paid"><b>${rm(paidM)}</b><span>Received this month</span></div>
-          <div class="stat t-up"><b>${rm(upc.reduce((a, e) => a + totalPay(e), 0))}</b><span>Upcoming (${upc.length} events)</span></div>
+          <div class="stat t-wait" style="grid-column:1/-1">
+            <details id="salary-breakdown" ${salaryDetailsOpen ? 'open' : ''}>
+              <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <span style="display:flex;flex-direction:column;gap:5px"><b>${rm(sumBalances(owed))}</b><span>Waiting to be paid (${owed.length} done events)</span></span>
+                <span style="font-size:13px;white-space:nowrap">Details ▾</span>
+              </summary>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:16px">
+                <div class="stat t-sal"><b>${rm(salaryTotal)}</b><span>Total salary · all events</span></div>
+                <div class="stat t-allow"><b>${rm(allowanceTotal)}</b><span>Total allowance · includes OT + parking</span></div>
+                <div class="stat t-tot"><b>${rm(s.reduce((n, e) => n + totalPay(e), 0))}</b><span>Total expected · salary + allowance + OT + parking</span></div>
+                <div class="stat t-up"><b>${rm(upc.reduce((a, e) => a + totalPay(e), 0))}</b><span>Upcoming (${upc.length} events)</span></div>
+                <div class="stat t-paid paid"><b>${rm(paidM)}</b><span>Received this month</span></div>
+              </div>
+
+            </details>
+          </div>
+              <section class="card soon" aria-label="Upcoming" style="margin-top:14px">
+                <div class="card-head"><h2>Upcoming</h2><small>${upc.length} event${upc.length === 1 ? '' : 's'}</small></div>
+                ${nextHtml}
+                <button class="btn" type="button" data-go="calendar">View calendar</button>
+              </section>
           ${shorts.length ? `<div class="stat short"><b>${rm(Math.abs(diff))}</b><span>Company still owes you · ${shorts.length} event(s)</span></div>` : ''}
-          <div class="stat t-sal"><b>${rm(salaryTotal)}</b><span>Total salary · all events</span></div>
-          <div class="stat t-allow"><b>${rm(allowanceTotal)}</b><span>Total allowance · includes OT + parking</span></div>
-          <div class="stat t-tot"><b>${rm(s.reduce((n, e) => n + totalPay(e), 0))}</b><span>Total expected · salary + allowance + OT + parking</span></div>
-        </div>
-        <section class="card soon" aria-label="Upcoming">
-          <div class="card-head"><h2>Upcoming</h2><small>${upc.length} event${upc.length === 1 ? '' : 's'}</small></div>
-          ${nextHtml}
-          <button class="btn" type="button" data-go="calendar">View calendar</button>
-        </section>`;
+        </div>`;
       // Calendar view shows only the calendar
       const inCal = filter === 'calendar';
       $('stats').hidden = inCal; $('tabs').hidden = inCal; $('bulk').hidden = inCal;
