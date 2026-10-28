@@ -477,6 +477,12 @@
     @media(prefers-reduced-motion:reduce) {
       *, *::before, *::after { transition: none !important }
     }
+  
+    [hidden] { display: none !important }
+    .soon { grid-column: 1/-1 }
+    .soon ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); column-gap: 32px }
+    .soon .btn { width: auto; align-self: flex-start; padding: 9px 24px }
+    .stat.t-wait::before { --ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237a5a00' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 7.5V12l3 2'/%3E%3C/svg%3E") }
   </style>
 </head>
 
@@ -628,26 +634,6 @@
       const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
       const salaryTotal = s.reduce((a, e) => a + Number(e.salary || 0), 0), allowanceTotal = s.reduce((a, e) => a + Number(e.allowance || 0) + Number(e.ot || 0) + Number(e.parking || 0), 0);
 
-      // Collected ratio: money received vs. expected, for events that already happened
-      const doneUnits = uniqueUnits(s).filter(e => e.st !== 'up');
-      const expTot = doneUnits.reduce((n, e) => n + cents(expected(e)), 0), recTot = doneUnits.reduce((n, e) => n + cents(received(e)), 0);
-      const ratio = expTot ? Math.min(1, recTot / expTot) : 0, pct = Math.round(ratio * 100);
-      const R = 78, C = 2 * Math.PI * R, arc = C * .75, ang = (135 + 270 * ratio) * Math.PI / 180;
-      const gauge = `<svg viewBox="0 0 200 200" aria-hidden="true"><defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f9d25e"/><stop offset="1" stop-color="#e3a912"/></linearGradient></defs><circle cx="100" cy="100" r="${R}" fill="none" stroke="rgba(80,60,20,.1)" stroke-width="16" stroke-linecap="round" stroke-dasharray="${arc} ${C}" transform="rotate(135 100 100)"/>${ratio > 0 ? `<circle cx="100" cy="100" r="${R}" fill="none" stroke="url(#gg)" stroke-width="16" stroke-linecap="round" stroke-dasharray="${arc * ratio} ${C}" transform="rotate(135 100 100)"/><circle cx="${100 + R * Math.cos(ang)}" cy="${100 + R * Math.sin(ang)}" r="9" fill="#fff" stroke="#e3a912" stroke-width="5"/>` : ''}</svg>`;
-
-      // Activity heatmap: events per day, last 15 weeks
-      const counts = {}; s.forEach(e => counts[e.date] = (counts[e.date] || 0) + 1);
-      const t0 = today(), now = new Date(); now.setHours(0, 0, 0, 0);
-      const endSat = new Date(now); endSat.setDate(now.getDate() + (6 - now.getDay()));
-      const startD = new Date(endSat); startD.setDate(endSat.getDate() - 104);
-      let heat = '', recent = 0;
-      for (let i = 0; i < 105; i++) {
-        const d = new Date(startD); d.setDate(startD.getDate() + i);
-        const ds = ymd(d), n = counts[ds] || 0, fut = ds > t0;
-        if (!fut) recent += n;
-        heat += `<i class="${fut ? 'fut' : n === 0 ? 'l0' : n === 1 ? 'l1' : n === 2 ? 'l2' : 'l3'}${ds === t0 ? ' tod' : ''}" title="${fmtDate(ds)} · ${n} event${n === 1 ? '' : 's'}"></i>`;
-      }
-
       // Next up
       const next = upc.slice().sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start)).slice(0, 4);
       const nextHtml = next.length
@@ -655,34 +641,23 @@
         : '<div class="none">No upcoming events.</div>';
 
       $('stats').innerHTML =
-        `<section class="card hero" aria-label="Pay overview">
-          <div class="card-head"><h2>Pay overview</h2><small>Collected</small></div>
-          <div class="date">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</div>
-          <div class="gauge">${gauge}<div class="mid"><b>${pct}<sup>%</sup></b><span>${expTot ? 'of finished events paid' : 'No finished events yet'}</span></div></div>
-          <div class="pair">
-            <div class="tile-g"><b>${rm(sumBalances(owed))}</b><span>Waiting to be paid (${owed.length} done events)</span></div>
-            <div class="tile-g"><b>${rm(paidM)}</b><span>Received this month</span></div>
-          </div>
-        </section>
-        <section class="card heat" aria-label="Activity">
-          <div class="heat-top">
-            <div><h2>Activity</h2><p>${recent} event${recent === 1 ? '' : 's'} in the last 15 weeks</p></div>
-            <div class="legend">Less <i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i> More</div>
-          </div>
-          <div class="hm" role="img" aria-label="Events per day over the last 15 weeks">${heat}</div>
-        </section>
-        <section class="card soon" aria-label="Upcoming">
-          <div class="card-head"><h2>Upcoming</h2><small>${upc.length} event${upc.length === 1 ? '' : 's'}</small></div>
-          ${nextHtml}
-          <button class="btn" type="button" data-go="calendar">View calendar</button>
-        </section>
-        <div class="tiles">
+        `<div class="tiles">
+          <div class="stat t-wait"><b>${rm(sumBalances(owed))}</b><span>Waiting to be paid (${owed.length} done events)</span></div>
+          <div class="stat t-paid paid"><b>${rm(paidM)}</b><span>Received this month</span></div>
           <div class="stat t-up"><b>${rm(upc.reduce((a, e) => a + totalPay(e), 0))}</b><span>Upcoming (${upc.length} events)</span></div>
           ${shorts.length ? `<div class="stat short"><b>${rm(Math.abs(diff))}</b><span>Company still owes you · ${shorts.length} event(s)</span></div>` : ''}
           <div class="stat t-sal"><b>${rm(salaryTotal)}</b><span>Total salary · all events</span></div>
           <div class="stat t-allow"><b>${rm(allowanceTotal)}</b><span>Total allowance · includes OT + parking</span></div>
           <div class="stat t-tot"><b>${rm(s.reduce((n, e) => n + totalPay(e), 0))}</b><span>Total expected · salary + allowance + OT + parking</span></div>
-        </div>`;
+        </div>
+        <section class="card soon" aria-label="Upcoming">
+          <div class="card-head"><h2>Upcoming</h2><small>${upc.length} event${upc.length === 1 ? '' : 's'}</small></div>
+          ${nextHtml}
+          <button class="btn" type="button" data-go="calendar">View calendar</button>
+        </section>`;
+      // Calendar view shows only the calendar
+      const inCal = filter === 'calendar';
+      $('stats').hidden = inCal; $('tabs').hidden = inCal; $('bulk').hidden = inCal;
       $('greet').textContent = (h => h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening')(new Date().getHours()) + ' · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
       $('navHome').classList.toggle('on', filter !== 'calendar');
       $('navCal').classList.toggle('on', filter === 'calendar');
