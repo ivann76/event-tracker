@@ -1577,7 +1577,7 @@ list.sort((a, b) => {
       <div class="acts">
         ${balance(e) > 0 ? `<button class="btn small good" data-a="pay" data-id="${esc(e.id)}">${IC('inb')}${payments(e).length ? 'Receive remaining balance' : 'Record payment'}</button>` : ''}
         <button class="btn small" data-a="edit" data-id="${e.id}">${IC('edit')}Edit</button>
-        <button class="btn small" data-a="del" data-id="${e.id}">${IC('trash')}Delete</button>
+        <button class="btn small" data-a="del" data-id="${e.id}">${IC('trash')}Event Cancel</button>
       </div>
     </article>`;
       }).join('');
@@ -1749,7 +1749,7 @@ list.sort((a, b) => {
       const e = events.find(x => x.id === b.dataset.id), a = b.dataset.a;
       if (a === 'edit') openForm(e);
       if (a === 'del' && groupOf(e)) { alert('This event belongs to a shared payment group. Keep it to preserve the group payment and balance history.'); return; }
-      if (a === 'del' && confirm('Delete this event?')) { events = events.filter(x => x.id !== e.id); save(); render(); }
+      if (a === 'del' && confirm('Cancel this event?')) { events = events.filter(x => x.id !== e.id); save(); render(); }
       if (a === 'pay') openPayment([e.id]);
     });
     $('tabs').addEventListener('click', ev => { const b = ev.target.closest('button[data-f]'); if (b) { filter = b.dataset.f; render(); } });
