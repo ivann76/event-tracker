@@ -1302,10 +1302,29 @@ html[data-design="modern"] .hactions{ flex: none }}
     .opt[aria-checked=true] .tag { display: inline-block }
     .hactions { margin-left: auto }
 
+#doneToast{position:fixed;left:50%;top:calc(18px + env(safe-area-inset-top,0px));z-index:100;display:flex;align-items:center;gap:12px;padding:12px 20px 12px 12px;border-radius:999px;background:#fffdf8;color:#1d1a14;font-weight:700;box-shadow:0 18px 40px -12px rgba(0,0,0,.45);border:1px solid rgba(0,0,0,.08);transform:translate(-50%,-140%);opacity:0;pointer-events:none;transition:transform .45s cubic-bezier(.2,1.3,.4,1),opacity .25s}
+#doneToast.show{transform:translate(-50%,0);opacity:1}
+html[data-design="classic"] #doneToast{background:#1d1310;color:#f6eee9;border-color:rgba(255,255,255,.12)}
+#doneToast .tick{width:36px;height:36px;border-radius:50%;background:#2b9a68;display:grid;place-items:center;flex:none}
+#doneToast.del .tick{background:#d2493f}
+#doneToast .tick svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:30;stroke-dashoffset:30}
+#doneToast.show .tick{animation:pop .5s .1s both}
+#doneToast.show .tick svg{animation:draw .45s .3s forwards}
+#doneToast.block .tick{background:#e0562a}
+#doneToast{max-width:calc(100vw - 24px)}
+#doneToast.block.show .tick{animation:pop .4s .1s both,wob .5s .5s}
+@keyframes wob{0%,100%{transform:rotate(0)}25%{transform:rotate(-14deg)}75%{transform:rotate(14deg)}}
+.shake{animation:shake .5s cubic-bezier(.36,.07,.19,.97)}
+@keyframes shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
+.ev.blocked{animation:blockflash .9s ease}
+@keyframes blockflash{0%,100%{box-shadow:var(--shadow,none)}30%{box-shadow:0 0 0 3px rgba(224,86,42,.7)}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pop{0%{transform:scale(0)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
   </style>
 </head>
 
 <body>
+<div id="doneToast" role="status" aria-live="polite"><span class="tick"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span><span id="doneMsg"></span></div>
   <main>
     <header>
       <div class="brand">
@@ -1341,6 +1360,17 @@ html[data-design="modern"] .hactions{ flex: none }}
       <div class="opts" role="radiogroup" aria-label="Design">
         <button class="opt" type="button" role="radio" data-design="modern"><span class="sw m"></span><span><b>Modern</b><span class="d">Light cream and gold dashboard with a side menu.</span><span class="tag">In use</span></span></button>
         <button class="opt" type="button" role="radio" data-design="classic"><span class="sw c"></span><span><b>Classic</b><span class="d">The original dark design.</span><span class="tag">In use</span></span></button>
+      </div>
+      <h3>Storage</h3>
+      <div style="margin-bottom:18px">
+        <label for="autoSel" style="display:block;font-weight:700;margin-bottom:6px">Auto-delete old paid events</label>
+        <select id="autoSel" style="padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:var(--field);color:var(--ink);font:inherit;min-width:200px">
+          <option value="0">Off</option>
+          <option value="3">After 3 months</option>
+          <option value="6">After 6 months</option>
+          <option value="12">After 12 months</option>
+        </select>
+        <p style="margin:8px 0 0;font-size:.88rem">Only events that are fully paid and older than this are removed. Events still waiting for pay or part-paid are never deleted. Use Export first if you want to keep a copy.</p>
       </div>
       <button class="btn" type="button" data-go="all">Back to events</button>
     </section>
@@ -1405,6 +1435,19 @@ html[data-design="modern"] .hactions{ flex: none }}
   <script>
     const KEY = 'eventPayTracker.v1';
     const $ = id => document.getElementById(id);
+    let toastT;
+    function done(msg, kind) {
+      const t = $('doneToast');
+      $('doneMsg').textContent = msg;
+      t.classList.remove('show'); void t.offsetWidth;
+      t.classList.toggle('del', kind === true);
+      t.classList.toggle('block', kind === 'block');
+      t.querySelector('path').setAttribute('d', kind === 'block' ? 'M7 7l10 10M17 7L7 17' : 'm5 12.5 4.5 4.5L19 7.5');
+      t.classList.add('show');
+      if (navigator.vibrate) navigator.vibrate(kind === 'block' ? [40, 30, 40, 30, 40] : kind === true ? 20 : [15, 40, 15]);
+      clearTimeout(toastT);
+      toastT = setTimeout(() => t.classList.remove('show'), kind === 'block' ? 3200 : 2200);
+    }
     const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     let events = [], filter = 'all', editId = null, payId = null;
     const selectedEvents = new Set();
@@ -1425,6 +1468,46 @@ html[data-design="modern"] .hactions{ flex: none }}
     const totalPay = e => Math.round((Number(e.salary || 0) + Number(e.allowance || 0) + Number(e.ot || 0) + Number(e.parking || 0)) * 100) / 100;
 
     try { events = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { events = []; }
+
+    /* One-time: turn old shared-payment groups into normal one-by-one payments (copy kept in storage). */
+    function ungroupPayments() {
+      const gs = {};
+      events.forEach(e => { if (e.paymentGroup) (gs[e.paymentGroup.id] = gs[e.paymentGroup.id] || []).push(e); });
+      const ids = Object.keys(gs); if (!ids.length) return;
+      try { localStorage.setItem(KEY + '.beforeUngroup', JSON.stringify(events)); } catch (e) { }
+      ids.forEach(id => {
+        const mem = gs[id].sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+        const pool = ((mem[0].paymentGroup && mem[0].paymentGroup.payments) || []).map(p => ({ amount: cents(p.amount), date: p.date }));
+        mem.forEach((e, i) => {
+          const last = i === mem.length - 1; let need = cents(totalPay(e)); const got = [];
+          while (pool.length && (last || need > 0)) {
+            const p = pool[0], take = last ? p.amount : Math.min(p.amount, need);
+            if (take > 0) got.push({ amount: take / 100, date: p.date });
+            p.amount -= take; need -= take;
+            if (p.amount <= 0) pool.shift();
+          }
+          delete e.paymentGroup;
+          e.payments = got;
+          e.paid = got.length ? { amount: got.reduce((n, p) => n + cents(p.amount), 0) / 100, date: got[got.length - 1].date } : null;
+        });
+      });
+      save();
+    }
+    /* Auto-delete: only fully paid events older than N months. */
+    const AUTO_KEY = 'eventPayTracker.autoDelete';
+    const autoMonths = () => { try { const v = localStorage.getItem(AUTO_KEY); return v === null ? 3 : Number(v); } catch (e) { return 3; } };
+    function purgeOld() {
+      const m = autoMonths(); if (!m) return 0;
+      const c = new Date(); c.setMonth(c.getMonth() - m);
+      const cut = c.getFullYear() + '-' + String(c.getMonth() + 1).padStart(2, '0') + '-' + String(c.getDate()).padStart(2, '0');
+      const before = events.length;
+      events = events.filter(e => !(e.date < cut && payments(e).length && balance(e) <= 0));
+      const n = before - events.length;
+      if (n) save();
+      return n;
+    }
+    ungroupPayments();
+    let purgedAtLoad = purgeOld();
     function save() { try { localStorage.setItem(KEY, JSON.stringify(events)); } catch (e) { alert('Could not save in this browser. Use Export backup.'); } }
 
     const rm = n => 'RM ' + Number(n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1507,8 +1590,9 @@ html[data-design="modern"] .hactions{ flex: none }}
       }
       // Calendar view (modern) shows only the calendar; Settings replaces the main view
       const isSet = filter === 'settings', hideCal = !classic && filter === 'calendar', hideMain = hideCal || isSet;
-      $('stats').hidden = hideMain; $('tabs').hidden = hideMain; $('bulk').hidden = hideMain;
+      $('stats').hidden = hideMain; $('tabs').hidden = hideMain; $('bulk').hidden = true;
       $('list').hidden = isSet; $('settings').hidden = !isSet;
+      if ($('autoSel')) $('autoSel').value = String(autoMonths());
       document.querySelectorAll('.opt[data-design]').forEach(o => o.setAttribute('aria-checked', String(o.dataset.design === (classic ? 'classic' : 'modern'))));
       $('greet').textContent = (h => h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening')(new Date().getHours()) + ' · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
       $('navHome').classList.toggle('on', filter !== 'calendar' && filter !== 'settings');
@@ -1551,11 +1635,6 @@ list.sort((a, b) => {
          a.start.localeCompare(b.start);
 });
       if (filter === 'short' || filter === 'outstanding') list.sort((a, b) => (groupOf(a)?.id || a.id).localeCompare(groupOf(b)?.id || b.id));
-      for (const id of selectedEvents) if (!events.some(e => e.id === id && balance(e) > 0)) selectedEvents.delete(id);
-      $('bulk').innerHTML = `<button class="btn" id="selectVisible">Select unpaid events in this view</button><button class="btn" id="clearSelection">Clear selection</button><button class="btn primary" id="bulkPay" ${selectedEvents.size ? '' : 'disabled'}>Record payment (${selectedEvents.size} selected)</button><span class="meta">Selected balance: ${rm(sumBalances(events.filter(e => selectedEvents.has(e.id))))}</span>`;
-      $('selectVisible').onclick = () => { list.filter(e => balance(e) > 0).forEach(e => selectUnit(e, true)); render(); };
-      $('clearSelection').onclick = () => { selectedEvents.clear(); render(); };
-      $('bulkPay').onclick = () => openPayment([...selectedEvents]);
       if (!list.length) {
         $('list').innerHTML = `<div class="empty">${s.length ? (filter === 'calendar' ? 'Select an event date above to see its details.' : 'No events in this view.') : 'No events yet. Press “Add event” to record your first one.'}</div>`;
         return;
@@ -1568,7 +1647,7 @@ list.sort((a, b) => {
         const paidLine = payments(e).length || g ? `<div class="meta">${groupLabel}Received ${rm(received(e))} · ${balance(e) > 0 ? `<strong class="warn">${g ? 'This group is still owed' : 'Company owes'} ${rm(balance(e))}</strong>` : 'Paid in full'}${received(e) > expected(e) ? ` · Extra received ${rm(received(e) - expected(e))}` : ''}</div>${g ? `<div class="dayhint">${members(e).map(x => esc(x.loc) + ' (' + fmtDate(x.date) + ')').join(' + ')}. Shared balance counted once on dashboard.</div>` : ''}<details><summary class="meta">${g ? 'Group payment' : 'Payment'} history</summary>${payments(e).map(p => `<div class="meta">${fmtDate(p.date)} · ${rm(p.amount)}</div>`).join('')}</details>` : '';
         return `<article class="ev">
       <div>
-        <h3><span class="ico ${b[0]}">${IC({ up: 'cal', wait: 'clock', paid: 'check', short: 'alert' }[e.st])}</span><span>${esc(e.loc)}</span></h3>${balance(e) > 0 ? `<label><input type="checkbox" style="width:auto" data-select="${esc(e.id)}" ${selectedEvents.has(e.id) ? 'checked' : ''}> Select for payment</label>` : ''}
+        <h3><span class="ico ${b[0]}">${IC({ up: 'cal', wait: 'clock', paid: 'check', short: 'alert' }[e.st])}</span><span>${esc(e.loc)}</span></h3>
         <div class="when">${dayName(e.date)}, ${fmtDate(e.date)} · ${fmtTime(e.start)} – ${fmtTime(e.end)}</div>
         <div class="meta">${esc(e.addr) || 'No address'}</div>
         ${paidLine}
@@ -1577,7 +1656,7 @@ list.sort((a, b) => {
       <div class="acts">
         ${balance(e) > 0 ? `<button class="btn small good" data-a="pay" data-id="${esc(e.id)}">${IC('inb')}${payments(e).length ? 'Receive remaining balance' : 'Record payment'}</button>` : ''}
         <button class="btn small" data-a="edit" data-id="${e.id}">${IC('edit')}Edit</button>
-        <button class="btn small" data-a="del" data-id="${e.id}">${IC('trash')}Event Cancel</button>
+        <button class="btn small" data-a="del" data-id="${e.id}">${IC('trash')}Delete</button>
       </div>
     </article>`;
       }).join('');
@@ -1692,7 +1771,7 @@ list.sort((a, b) => {
       const data = { date: $('date').value, start: $('start').value, end: $('end').value, salary: parseFloat($('salary').value), allowance: parseFloat($('allowance').value || '0'), ot: parseFloat($('ot').value || '0'), parking: parseFloat($('parking').value || '0'), loc: $('loc').value.trim(), addr: $('addr').value.trim() };
       if (editId) { const i = events.findIndex(x => x.id === editId); events[i] = { ...events[i], ...data }; }
       else events.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), paid: null, ...data });
-      save(); render();
+      const wasEdit = !!editId; save(); render(); done(wasEdit ? 'Event updated!' : 'Event added!');
     });
     $('cancel').onclick = () => $('form').close();
     $('add').onclick = () => openForm();
@@ -1738,7 +1817,7 @@ list.sort((a, b) => {
       const items = paymentItems(), value = Number($('pamt').value);
       if (!Number.isFinite(value) || cents(value) <= 0 || !items.length || !$('pdate').value) { alert('Enter a valid payment amount and date.'); return; }
       recordReceipt(items, value, $('pdate').value);
-      selectedEvents.clear(); save(); $('payd').close(); render();
+      selectedEvents.clear(); save(); $('payd').close(); render(); done('Payment recorded!');
     });
     $('pcancel').onclick = () => $('payd').close();
     $('list').addEventListener('change', ev => { const id = ev.target.dataset.select; if (id) { const e = events.find(x => x.id === id); if (e) selectUnit(e, ev.target.checked); render(); } });
@@ -1748,8 +1827,12 @@ list.sort((a, b) => {
       const b = ev.target.closest('button[data-a]'); if (!b) return;
       const e = events.find(x => x.id === b.dataset.id), a = b.dataset.a;
       if (a === 'edit') openForm(e);
-      if (a === 'del' && groupOf(e)) { alert('This event belongs to a shared payment group. Keep it to preserve the group payment and balance history.'); return; }
-      if (a === 'del' && confirm('Cancel this event?')) { events = events.filter(x => x.id !== e.id); save(); render(); }
+      if (a === 'del' && groupOf(e)) {
+        b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
+        const card = b.closest('.ev'); if (card) { card.classList.remove('blocked'); void card.offsetWidth; card.classList.add('blocked'); }
+        done("Can't cancel: part of a shared payment group", 'block'); return;
+      }
+      if (a === 'del' && confirm('Delete this event?')) { events = events.filter(x => x.id !== e.id); save(); render(); done('Event cancelled', true); }
       if (a === 'pay') openPayment([e.id]);
     });
     $('tabs').addEventListener('click', ev => { const b = ev.target.closest('button[data-f]'); if (b) { filter = b.dataset.f; render(); } });
@@ -1770,8 +1853,14 @@ list.sort((a, b) => {
       $('file').value = '';
     };
 
+    $('autoSel').addEventListener('change', () => {
+      try { localStorage.setItem(AUTO_KEY, $('autoSel').value); } catch (e) { }
+      const n = purgeOld(); render();
+      done(Number($('autoSel').value) ? (n ? 'Cleared ' + n + ' old paid event' + (n === 1 ? '' : 's') : 'Auto-delete is on') : 'Auto-delete is off');
+    });
     render();
-    setInterval(render, 60000);
+    if (purgedAtLoad) done('Cleared ' + purgedAtLoad + ' old paid event' + (purgedAtLoad === 1 ? '' : 's'));
+    setInterval(() => { purgeOld(); render(); }, 60000);
   </script>
 </body>
 
