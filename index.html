@@ -1320,6 +1320,20 @@ html[data-design="classic"] #doneToast{background:#1d1310;color:#f6eee9;border-c
 @keyframes blockflash{0%,100%{box-shadow:var(--shadow,none)}30%{box-shadow:0 0 0 3px rgba(224,86,42,.7)}}
 @keyframes draw{to{stroke-dashoffset:0}}
 @keyframes pop{0%{transform:scale(0)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+
+    /* Collapsible event cards */
+    html[data-design] .ev { display: block; padding: 12px 14px 12px 22px }
+    html[data-design] .ev::before { top: 14px; bottom: 14px }
+    .ev-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; -webkit-tap-highlight-color: transparent }
+    .ev-head:focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; border-radius: 10px }
+    .ev-main { min-width: 0 }
+    html[data-design] .ev-main h3 { margin: 0 0 2px; font-size: 1rem }
+    .ev-main .when { font-size: .86rem }
+    .ev-side { display: flex; align-items: center; gap: 8px; flex: none }
+    .ev-side b { font-size: 1.05rem; font-weight: 700; white-space: nowrap }
+    .chev { color: var(--mute); transition: transform .2s }
+    .ev.open .chev { transform: rotate(180deg) }
+    .more { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); display: grid; gap: 8px }
   </style>
 </head>
 
@@ -1451,6 +1465,7 @@ html[data-design="classic"] #doneToast{background:#1d1310;color:#f6eee9;border-c
     const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     let events = [], filter = 'all', editId = null, payId = null;
     const selectedEvents = new Set();
+    const openCards = new Set();
     let paymentIds = [];
     const cents = n => Math.round(Number(n || 0) * 100);
     const ownPayments = e => Array.isArray(e.payments) ? e.payments : e.paid ? [{ amount: Number(e.paid.amount), date: e.paid.date }] : [];
@@ -1545,7 +1560,7 @@ html[data-design="classic"] #doneToast{background:#1d1310;color:#f6eee9;border-c
       const outstanding = s.filter(e => e.st === 'short' || e.st === 'wait');
 
       const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-      const salaryTotal = s.reduce((a, e) => a + Number(e.salary || 0), 0), allowanceTotal = s.reduce((a, e) => a + Number(e.allowance || 0) + Number(e.ot || 0) + Number(e.parking || 0), 0);
+      const activeEv = s.filter(e => e.st === 'up' || e.st === 'wait'), salaryTotal = activeEv.reduce((a, e) => a + Number(e.salary || 0), 0), allowanceTotal = activeEv.reduce((a, e) => a + Number(e.allowance || 0) + Number(e.ot || 0) + Number(e.parking || 0), 0), activeTotal = activeEv.reduce((n, e) => n + totalPay(e), 0);
 
       // Next up
       const next = upc.slice().sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start)).slice(0, 4);
@@ -1563,9 +1578,9 @@ html[data-design="classic"] #doneToast{background:#1d1310;color:#f6eee9;border-c
                 <span style="font-size:13px;white-space:nowrap">Details ▾</span>
               </summary>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:16px">
-                <div class="stat t-sal"><b>${rm(salaryTotal)}</b><span>Total salary · all events</span></div>
-                <div class="stat t-allow"><b>${rm(allowanceTotal)}</b><span>Total allowance · includes OT + parking</span></div>
-                <div class="stat t-tot"><b>${rm(s.reduce((n, e) => n + totalPay(e), 0))}</b><span>Total expected · salary + allowance + OT + parking</span></div>
+                <div class="stat t-sal"><b>${rm(salaryTotal)}</b><span>Total salary · upcoming + waiting</span></div>
+                <div class="stat t-allow"><b>${rm(allowanceTotal)}</b><span>Total allowance · upcoming + waiting (incl. OT + parking)</span></div>
+                <div class="stat t-tot"><b>${rm(activeTotal)}</b><span>Total expected · upcoming + waiting</span></div>
                 <div class="stat t-up"><b>${rm(upc.reduce((a, e) => a + totalPay(e), 0))}</b><span>Upcoming (${upc.length} events)</span></div>
                 <div class="stat t-paid paid"><b>${rm(paidM)}</b><span>Received this month</span></div>
               </div>
@@ -1586,7 +1601,7 @@ html[data-design="classic"] #doneToast{background:#1d1310;color:#f6eee9;border-c
            <div class="stat"><b>${rm(upc.reduce((a, e) => a + totalPay(e), 0))}</b><span>Upcoming (${upc.length} events)</span></div>
            <div class="stat paid"><b>${rm(paidM)}</b><span>Received this month</span></div>` +
           (shorts.length ? `<div class="stat short"><b>${rm(Math.abs(diff))}</b><span>Company still owes you · ${shorts.length} event(s)</span></div>` : '') +
-          `<div class="stat"><b>${rm(salaryTotal)}</b><span>Total salary · all events</span></div><div class="stat"><b>${rm(allowanceTotal)}</b><span>Total allowance · includes OT + parking</span></div><div class="stat"><b>${rm(s.reduce((n, e) => n + totalPay(e), 0))}</b><span>Total expected · salary + allowance + OT + parking</span></div>`;
+          `<div class="stat"><b>${rm(salaryTotal)}</b><span>Total salary · upcoming + waiting</span></div><div class="stat"><b>${rm(allowanceTotal)}</b><span>Total allowance · upcoming + waiting (incl. OT + parking)</span></div><div class="stat"><b>${rm(activeTotal)}</b><span>Total expected · upcoming + waiting</span></div>`;
       }
       // Calendar view (modern) shows only the calendar; Settings replaces the main view
       const isSet = filter === 'settings', hideCal = !classic && filter === 'calendar', hideMain = hideCal || isSet;
@@ -1645,18 +1660,24 @@ list.sort((a, b) => {
         const g = groupOf(e);
         const groupLabel = g ? `Shared payment · ${members(e).length} events · ` : '';
         const paidLine = payments(e).length || g ? `<div class="meta">${groupLabel}Received ${rm(received(e))} · ${balance(e) > 0 ? `<strong class="warn">${g ? 'This group is still owed' : 'Company owes'} ${rm(balance(e))}</strong>` : 'Paid in full'}${received(e) > expected(e) ? ` · Extra received ${rm(received(e) - expected(e))}` : ''}</div>${g ? `<div class="dayhint">${members(e).map(x => esc(x.loc) + ' (' + fmtDate(x.date) + ')').join(' + ')}. Shared balance counted once on dashboard.</div>` : ''}<details><summary class="meta">${g ? 'Group payment' : 'Payment'} history</summary>${payments(e).map(p => `<div class="meta">${fmtDate(p.date)} · ${rm(p.amount)}</div>`).join('')}</details>` : '';
-        return `<article class="ev">
-      <div>
-        <h3><span class="ico ${b[0]}">${IC({ up: 'cal', wait: 'clock', paid: 'check', short: 'alert' }[e.st])}</span><span>${esc(e.loc)}</span></h3>
-        <div class="when">${dayName(e.date)}, ${fmtDate(e.date)} · ${fmtTime(e.start)} – ${fmtTime(e.end)}</div>
+        const open = openCards.has(e.id);
+        return `<article class="ev ${open ? 'open' : ''}">
+      <div class="ev-head" role="button" tabindex="0" aria-expanded="${open}" data-toggle="${esc(e.id)}">
+        <div class="ev-main">
+          <h3><span class="ico ${b[0]}">${IC({ up: 'cal', wait: 'clock', paid: 'check', short: 'alert' }[e.st])}</span><span>${esc(e.loc)}</span></h3>
+          <div class="when">${dayName(e.date)}, ${fmtDate(e.date)} · ${fmtTime(e.start)} – ${fmtTime(e.end)}</div>
+        </div>
+        <div class="ev-side"><b>${rm(e.salary)}</b><span class="chev">▾</span></div>
+      </div>
+      <div class="more" ${open ? '' : 'hidden'}>
         <div class="meta">${esc(e.addr) || 'No address'}</div>
         ${paidLine}
-      </div>
-      <div class="pay"><b>${rm(totalPay(e))}</b><div class="meta"><span>Salary ${rm(e.salary)}</span><span>Allowance ${rm(e.allowance || 0)}</span><span>OT ${rm(e.ot || 0)}</span><span>Parking claim ${rm(e.parking || 0)}</span></div><span class="badge ${b[0]}">${b[1]}</span></div>
-      <div class="acts">
-        ${balance(e) > 0 ? `<button class="btn small good" data-a="pay" data-id="${esc(e.id)}">${IC('inb')}${payments(e).length ? 'Receive remaining balance' : 'Record payment'}</button>` : ''}
-        <button class="btn small" data-a="edit" data-id="${e.id}">${IC('edit')}Edit</button>
-        <button class="btn small" data-a="del" data-id="${e.id}">${IC('trash')}Delete</button>
+        <div class="pay"><b>${rm(totalPay(e))}</b><div class="meta"><span>Salary ${rm(e.salary)}</span><span>Allowance ${rm(e.allowance || 0)}</span><span>OT ${rm(e.ot || 0)}</span><span>Parking claim ${rm(e.parking || 0)}</span></div><span class="badge ${b[0]}">${b[1]}</span></div>
+        <div class="acts">
+          ${balance(e) > 0 ? `<button class="btn small good" data-a="pay" data-id="${esc(e.id)}">${IC('inb')}${payments(e).length ? 'Receive remaining balance' : 'Record payment'}</button>` : ''}
+          <button class="btn small" data-a="edit" data-id="${e.id}">${IC('edit')}Edit</button>
+          <button class="btn small" data-a="del" data-id="${e.id}">${IC('trash')}Delete</button>
+        </div>
       </div>
     </article>`;
       }).join('');
@@ -1821,6 +1842,14 @@ list.sort((a, b) => {
     });
     $('pcancel').onclick = () => $('payd').close();
     $('list').addEventListener('change', ev => { const id = ev.target.dataset.select; if (id) { const e = events.find(x => x.id === id); if (e) selectUnit(e, ev.target.checked); render(); } });
+
+    function toggleCard(h) {
+      const id = h.dataset.toggle;
+      openCards.has(id) ? openCards.delete(id) : openCards.add(id);
+      render();
+    }
+    $('list').addEventListener('click', ev => { const h = ev.target.closest('[data-toggle]'); if (h) toggleCard(h); });
+    $('list').addEventListener('keydown', ev => { const h = ev.target.closest('[data-toggle]'); if (h && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); toggleCard(h); } });
 
     /* list actions */
     $('list').addEventListener('click', ev => {
