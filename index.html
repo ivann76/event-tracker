@@ -1667,7 +1667,7 @@ list.sort((a, b) => {
           <h3><span class="ico ${b[0]}">${IC({ up: 'cal', wait: 'clock', paid: 'check', short: 'alert' }[e.st])}</span><span>${esc(e.loc)}</span></h3>
           <div class="when">${dayName(e.date)}, ${fmtDate(e.date)} · ${fmtTime(e.start)} – ${fmtTime(e.end)}</div>
         </div>
-        <div class="ev-side"><b>${rm(e.salary)}</b><span class="chev">▾</span></div>
+        <div class="ev-side"><b>${rm(totalPay(e))}</b><span class="chev">▾</span></div>
       </div>
       <div class="more" ${open ? '' : 'hidden'}>
         <div class="meta">${esc(e.addr) || 'No address'}</div>
