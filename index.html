@@ -960,6 +960,7 @@ list.sort((a, b) => {
         <div class="pay"><b>${rm(totalPay(e))}</b><div class="meta"><span>Salary ${rm(e.salary)}</span><span>Allowance ${rm(e.allowance || 0)}</span><span>OT ${rm(e.ot || 0)}</span><span>Parking claim ${rm(e.parking || 0)}</span></div><span class="badge ${b[0]}">${b[1]}</span></div>
         <div class="acts">
           ${balance(e) > 0 ? `<button class="btn small good" data-a="pay" data-id="${esc(e.id)}">${IC('inb')}${payments(e).length ? 'Receive remaining balance' : 'Record payment'}</button>` : ''}
+          ${String(e.addr || '').trim() ? `<button class="btn small" data-a="copy-address" data-id="${esc(e.id)}" title="Copy address only">Copy Address</button>` : ''}
           <button class="btn small" data-a="edit" data-id="${e.id}">${IC('edit')}Edit</button>
           <button class="btn small" data-a="del" data-id="${e.id}">${IC('trash')}Delete</button>
         </div>
@@ -1137,9 +1138,30 @@ list.sort((a, b) => {
     $('list').addEventListener('keydown', ev => { const h = ev.target.closest('[data-toggle]'); if (h && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); toggleCard(h); } });
 
     /* list actions */
-    $('list').addEventListener('click', ev => {
+    $('list').addEventListener('click', async ev => {
       const b = ev.target.closest('button[data-a]'); if (!b) return;
       const e = events.find(x => x.id === b.dataset.id), a = b.dataset.a;
+      if (a === 'copy-address') {
+        const address = String(e?.addr || '').trim();
+        if (!address) { done('No address to copy', 'block'); return; }
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(address);
+          } else {
+            const field = document.createElement('textarea');
+            field.value = address;
+            field.setAttribute('readonly', '');
+            field.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+            document.body.appendChild(field);
+            field.select();
+            const copied = document.execCommand('copy');
+            field.remove();
+            if (!copied) throw new Error('Copy failed');
+          }
+          done('Address copied!');
+        } catch (err) { done('Unable to copy address', 'block'); }
+        return;
+      }
       if (a === 'edit') openForm(e);
       if (a === 'del' && groupOf(e)) {
         b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
