@@ -1029,6 +1029,13 @@ list.sort((a, b) => {
         if (/allowance/i.test(match[2])) out.allowance = (out.allowance || 0) + amount;
         else if (out.salary === undefined) out.salary = amount;
       }
+      // Catering postings use 'Allowance: RM75 + RM25 travel' to mean
+      // RM75 salary plus RM25 allowance. Keep legacy parsing otherwise.
+      const splitPay = text.match(/^\s*\*?\s*Allowance\s*:\s*RM\s*([\d,]+(?:\.\d{1,2})?)\s*\+\s*(?:RM\s*)?([\d,]+(?:\.\d{1,2})?)/im);
+      if (splitPay) {
+        out.salary = Number(splitPay[1].replace(/,/g, ''));
+        out.allowance = Number(splitPay[2].replace(/,/g, ''));
+      }
       if (out.salary !== undefined && out.allowance === undefined) out.allowance = 0;
       const lines = text.split(/\r?\n/).map(l => l.trim());
       const idx = lines.findIndex(l => /📍|^(?:event\s+)?(?:location|venue)\s*:/i.test(l));
