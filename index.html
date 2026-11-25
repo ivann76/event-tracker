@@ -903,38 +903,15 @@ html[data-design] .hactions{ flex: none }}
       $('calendar').hidden = filter !== 'calendar';
       if (filter === 'calendar') renderCalendar();
       let list = s.filter(e => (filter === 'calendar' ? e.date === selectedDate : filter === 'all') || (filter === 'outstanding' ? e.st === 'wait' || e.st === 'short' : e.st === filter));
-list.sort((a, b) => {
-  if (filter === 'all') {
-    const priority = {
-      up: 0,
-      wait: 1,
-      short: 1,
-      paid: 2
-    };
-
-    const statusA = status(a);
-    const statusB = status(b);
-
-    // First: group by status
-    const groupDiff = priority[statusA] - priority[statusB];
-
-    if (groupDiff !== 0) return groupDiff;
-
-    // Second: sort dates independently within each group
-    return a.date.localeCompare(b.date) ||
-           a.start.localeCompare(b.start);
-  }
-
-  // Keep Paid tab newest first
-  if (filter === 'paid') {
-    return b.date.localeCompare(a.date);
-  }
-
-  // Other tabs earliest date first
-  return a.date.localeCompare(b.date) ||
-         a.start.localeCompare(b.start);
-});
-      if (filter === 'short' || filter === 'outstanding') list.sort((a, b) => (groupOf(a)?.id || a.id).localeCompare(groupOf(b)?.id || b.id));
+      list.sort((a, b) => {
+        if (filter === 'all') {
+          const priority = { up: 0, wait: 1, short: 1, paid: 2 };
+          const groupDiff = priority[status(a)] - priority[status(b)];
+          if (groupDiff !== 0) return groupDiff;
+        }
+        // Newest event first within each status group or filtered list.
+        return b.date.localeCompare(a.date) || b.start.localeCompare(a.start);
+      });
       if (!list.length) {
         $('list').innerHTML = `<div class="empty">${s.length ? (filter === 'calendar' ? 'Select an event date above to see its details.' : 'No events in this view.') : 'No events yet. Press “Add event” to record your first one.'}</div>`;
         return;
@@ -1111,7 +1088,7 @@ list.sort((a, b) => {
       paymentIds = [...expanded];
       const items = paymentItems(), units = uniqueUnits(items); if (!items.length) return;
       $('pinfo').textContent = items.length + ' event(s) · Expected ' + rm(items.reduce((n, e) => n + totalPay(e), 0)) + ' · Already received ' + rm(units.reduce((n, e) => n + received(e), 0)) + ' · Remaining ' + rm(sumBalances(items));
-      $('pdate').value = today(); $('pamt').value = '';
+      $('pdate').value = today(); $('pamt').value = sumBalances(items).toFixed(2);
       $('allocations').innerHTML = items.map(e => `<div class="meta">${esc(e.loc)} · ${fmtDate(e.date)} · Expected ${rm(totalPay(e))}</div>`).join('') + (items.length > 1 ? '<p class="dayhint">One shared balance for these events. Payments are not split between events. Selecting an existing group includes all its events.</p>' : '');
       checkAmt(); $('payd').showModal();
     }
