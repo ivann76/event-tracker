@@ -909,7 +909,10 @@ html[data-design] .hactions{ flex: none }}
           const groupDiff = priority[status(a)] - priority[status(b)];
           if (groupDiff !== 0) return groupDiff;
         }
-        // Newest event first within each status group or filtered list.
+        // Upcoming events: nearest first; other events: newest first.
+        if (status(a) === 'up' && status(b) === 'up') {
+          return a.date.localeCompare(b.date) || a.start.localeCompare(b.start);
+        }
         return b.date.localeCompare(a.date) || b.start.localeCompare(a.start);
       });
       if (!list.length) {
