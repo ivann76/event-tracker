@@ -839,8 +839,11 @@ html[data-design] .hactions{ flex: none }}
     }[n]}</svg>`;
     function status(e) {
       if (payments(e).length) return balance(e) > 0 ? 'short' : 'paid';
+      const start = new Date(e.date + 'T' + e.start);
       const end = new Date(e.date + 'T' + e.end);
-      return end < new Date() ? 'wait' : 'up';
+      // An end time earlier than the start time falls on the following day.
+      if (end < start) end.setDate(end.getDate() + 1);
+      return end <= new Date() ? 'wait' : 'up';
     }
 
     function render() {
